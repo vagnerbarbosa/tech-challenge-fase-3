@@ -9,8 +9,6 @@ Script principal que orquestra todo o pipeline:
 3. Avaliação do modelo
 4. Execução do assistente médico generalista com LangChain
 
-Autor: Vagner Barbosa
-Data: Março 2026
 """
 
 import os

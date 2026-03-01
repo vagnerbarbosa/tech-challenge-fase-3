@@ -82,6 +82,13 @@ data/processed/*.jsonl
 data/processed/sanitization_report.json
 !data/processed/.gitkeep
 
+# Models (arquivos de modelos gerados ou utilizados)
+models/*
+models/*.bin
+models/*.pt
+models/*.h5
+!models/.gitkeep
+
 # Documentação (manter apenas Markdown)
 docs/*.pdf
 
