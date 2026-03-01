@@ -113,63 +113,6 @@ python -m src.scraping.run_scrapers
 
 > ⚠️ **Importante**: Os arquivos CSV de dados processados **não são versionados** no repositório. Na primeira execução do projeto, você precisa executar os scrapers para gerar esses dados localmente.
 
-## 📥 Geração de Dados (Web Scraping)
-
-O projeto inclui um módulo de **web scraping** para coletar dados médicos de fontes públicas e confiáveis. Esses dados são utilizados para o treinamento e fine-tuning do modelo.
-
-### Fontes de Dados
-
-| Fonte | Descrição | Arquivo Gerado |
-|-------|-----------|----------------|
-| **HCPA** | Protocolos médicos do Hospital de Clínicas de Porto Alegre | `protocolos_medicos.csv` |
-| **TelessaúdeRS** | Perguntas frequentes de saúde pública | `perguntas_frequentes.csv` |
-| **RadReport** | Modelos de laudos radiológicos | `modelos_laudos.csv` |
-
-### Como Executar os Scrapers
-
-```bash
-# Executar todos os scrapers (recomendado)
-python -m src.scraping.run_scrapers
-
-# Ou executar diretamente
-python src/scraping/run_scrapers.py
-```
-
-### Limites de Coleta (max_items)
-
-Os scrapers possuem limites configuráveis de itens a coletar:
-
-| Scraper | Limite Padrão | Descrição |
-|---------|---------------|-----------|
-| HCPA | 50 | Protocolos médicos |
-| TelessaúdeRS | 30 | Perguntas frequentes |
-| RadReport | 20 | Modelos de laudos |
-
-Para alterar os limites, edite `SCRAPER_CONFIG` em `src/scraping/run_scrapers.py`:
-
-```python
-SCRAPER_CONFIG = {
-    "hcpa": {"max_items": 50},        # Altere aqui
-    "telessaude": {"max_items": 30},  # Altere aqui  
-    "radreport": {"max_items": 20},   # Altere aqui
-}
-```
-
-> 📖 Para mais detalhes, veja a [documentação completa de scraping](docs/SCRAPING.md).
-
-### Arquivos Gerados
-
-Após a execução, os seguintes arquivos serão criados em `data/processed/`:
-
-```
-data/processed/
-├── protocolos_medicos.csv      # ~200+ protocolos médicos
-├── perguntas_frequentes.csv    # ~300+ FAQs de saúde
-└── modelos_laudos.csv          # ~100+ modelos de laudos
-```
-
-> 💡 **Dica**: Os logs de execução são salvos em `logs/` para acompanhamento e debugging.
-
 ## 💻 Como Executar
 
 ### Pipeline Completo
