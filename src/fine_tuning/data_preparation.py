@@ -3,9 +3,9 @@ Módulo de Preparação e Anonimização de Dados
 ============================================
 
 Responsável por:
-- Carregar dados médicos
+- Carregar dados médicos gerais
 - Anonimizar informações sensíveis (LGPD)
-- Preparar dataset para fine-tuning
+- Preparar dataset para fine-tuning do assistente generalista
 """
 
 import os
@@ -24,11 +24,12 @@ logger = get_logger(__name__)
 class DataPreparation:
     """
     Classe para preparação e anonimização de dados médicos.
+    Suporta dados de diversas especialidades médicas para o assistente generalista.
     """
     
     def __init__(self, data_path: Optional[str] = None):
         """
-        Inicializa o preparador de dados.
+        Inicializa o preparador de dados médicos.
         
         Args:
             data_path: Caminho para os dados. Se None, usa DATA_PATH do .env
@@ -81,12 +82,12 @@ class DataPreparation:
         
         return anonymized
     
-    def load_raw_data(self, filename: str = "diabetes.csv") -> pd.DataFrame:
+    def load_raw_data(self, filename: str = "medical_data.csv") -> pd.DataFrame:
         """
         Carrega dados brutos do arquivo.
         
         Args:
-            filename: Nome do arquivo de dados
+            filename: Nome do arquivo de dados médicos
             
         Returns:
             DataFrame com os dados carregados
@@ -95,7 +96,7 @@ class DataPreparation:
         
         if not file_path.exists():
             logger.warning(f"Arquivo não encontrado: {file_path}")
-            logger.info("Criando dataset de exemplo...")
+            logger.info("Criando dataset de exemplo com dados médicos gerais...")
             return self._create_sample_dataset()
         
         logger.info(f"Carregando dados de: {file_path}")
@@ -107,36 +108,52 @@ class DataPreparation:
     def _create_sample_dataset(self) -> pd.DataFrame:
         """
         Cria um dataset de exemplo para demonstração.
+        Inclui perguntas e respostas médicas gerais de diversas especialidades.
         
         Returns:
             DataFrame com dados de exemplo
         """
-        # Exemplos de perguntas e respostas médicas
+        # Exemplos de perguntas e respostas médicas gerais
         samples = [
             {
-                "instruction": "O que é diabetes tipo 2?",
+                "instruction": "Quais são os sintomas de uma gripe comum?",
                 "input": "",
-                "output": "Diabetes tipo 2 é uma condição crônica que afeta a forma como o corpo metaboliza a glicose. Ocorre quando o corpo desenvolve resistência à insulina ou não produz insulina suficiente. Os fatores de risco incluem obesidade, sedentarismo e histórico familiar."
+                "output": "Os principais sintomas da gripe comum incluem: febre (geralmente acima de 38°C), dor de cabeça, dores musculares e nas articulações, fadiga intensa, tosse seca, coriza, dor de garganta e calafrios. Os sintomas costumam aparecer de forma súbita e durar de 7 a 10 dias. Recomenda-se repouso, hidratação e, se necessário, consultar um médico."
             },
             {
-                "instruction": "Quais são os sintomas da diabetes?",
+                "instruction": "Quando devo procurar um pronto-socorro?",
                 "input": "",
-                "output": "Os principais sintomas da diabetes incluem: sede excessiva (polidipsia), urinação frequente (poliúria), fome excessiva (polifagia), perda de peso inexplicada, fadiga, visão turva, cicatrização lenta de feridas e formigamento nas extremidades."
+                "output": "Deve procurar um pronto-socorro em situações de emergência como: dor no peito ou dificuldade respiratória, perda de consciência ou desmaio, sangramento intenso que não para, febre muito alta (acima de 39.5°C) que não cede com medicamentos, confusão mental súbita, suspeita de AVC (rosto caído, fraqueza em um lado do corpo, fala arrastada), trauma grave ou fraturas, reações alérgicas severas."
             },
             {
-                "instruction": "Como controlar a glicemia?",
-                "input": "Paciente com diabetes tipo 2 recém-diagnosticado",
-                "output": "Para controlar a glicemia, recomenda-se: 1) Alimentação equilibrada com baixo índice glicêmico; 2) Exercícios físicos regulares (30 min/dia); 3) Monitoramento regular da glicose; 4) Medicação conforme prescrição médica; 5) Controle do peso; 6) Evitar álcool e tabaco."
+                "instruction": "O que é pressão arterial alta e como controlar?",
+                "input": "Paciente com histórico familiar de hipertensão",
+                "output": "A pressão arterial alta (hipertensão) ocorre quando a força do sangue contra as paredes das artérias é consistentemente elevada (acima de 140/90 mmHg). Para controlar: 1) Reduza o consumo de sal; 2) Mantenha peso saudável; 3) Pratique exercícios regularmente; 4) Evite álcool e tabaco; 5) Gerencie o estresse; 6) Tome medicamentos conforme prescrição médica; 7) Monitore a pressão regularmente."
             },
             {
-                "instruction": "Qual a diferença entre diabetes tipo 1 e tipo 2?",
+                "instruction": "Quais exames de rotina são recomendados anualmente?",
                 "input": "",
-                "output": "Diabetes tipo 1 é uma doença autoimune onde o sistema imunológico ataca as células beta do pâncreas, geralmente diagnosticada na infância/adolescência. Diabetes tipo 2 é caracterizada por resistência à insulina, mais comum em adultos e associada ao estilo de vida."
+                "output": "Os exames de rotina recomendados variam por idade e sexo, mas geralmente incluem: hemograma completo, glicemia de jejum, perfil lipídico (colesterol e triglicerídeos), função renal e hepática, exame de urina, medição de pressão arterial. Para mulheres: papanicolau e mamografia (após 40 anos). Para homens acima de 50: PSA. Sempre consulte seu médico para um plano personalizado."
             },
             {
-                "instruction": "O que é hipoglicemia?",
+                "instruction": "Como aliviar dor de cabeça?",
                 "input": "",
-                "output": "Hipoglicemia é quando os níveis de açúcar no sangue ficam muito baixos (abaixo de 70 mg/dL). Sintomas incluem tremores, sudorese, confusão mental, tontura e fome intensa. Tratamento imediato: consumir 15g de carboidrato de ação rápida."
+                "output": "Para aliviar dores de cabeça comuns: 1) Descanse em ambiente escuro e silencioso; 2) Aplique compressas frias ou quentes na testa/nuca; 3) Mantenha-se hidratado; 4) Evite telas de computador e celular; 5) Analgésicos como paracetamol ou ibuprofeno podem ajudar (conforme orientação médica). Procure um médico se a dor for intensa, súbita, acompanhada de febre, rigidez no pescoço ou alterações visuais."
+            },
+            {
+                "instruction": "O que fazer em caso de queimadura leve?",
+                "input": "",
+                "output": "Em caso de queimadura leve (1º grau): 1) Resfrie a área com água corrente fria por 10-20 minutos; 2) Não aplique gelo diretamente; 3) Não use manteiga, pasta de dente ou outros produtos caseiros; 4) Aplique pomada para queimaduras se disponível; 5) Cubra com gaze limpa; 6) Tome analgésico se necessário. Procure atendimento médico se a queimadura for extensa, no rosto, mãos, pés ou genitália."
+            },
+            {
+                "instruction": "Quais são os sinais de um infarto?",
+                "input": "",
+                "output": "Os sinais de alerta de infarto incluem: dor ou desconforto no peito (sensação de pressão, aperto ou queimação), dor que se irradia para braço esquerdo, mandíbula, costas ou estômago, falta de ar, sudorese fria, náuseas ou vômitos, tontura. Mulheres podem ter sintomas atípicos como fadiga extrema. Em caso de suspeita, ligue 192 (SAMU) imediatamente - cada minuto conta!"
+            },
+            {
+                "instruction": "Como melhorar a qualidade do sono?",
+                "input": "",
+                "output": "Para melhorar o sono: 1) Mantenha horários regulares para dormir e acordar; 2) Evite cafeína e álcool à noite; 3) Crie um ambiente escuro, silencioso e fresco; 4) Evite telas 1 hora antes de dormir; 5) Pratique exercícios (mas não perto da hora de dormir); 6) Evite refeições pesadas à noite; 7) Considere técnicas de relaxamento. Se a insônia persistir por mais de 3 semanas, consulte um médico."
             },
         ]
         
@@ -145,7 +162,7 @@ class DataPreparation:
         # Salva o dataset de exemplo
         sample_path = self.processed_path / "sample_medical_qa.csv"
         df.to_csv(sample_path, index=False)
-        logger.info(f"Dataset de exemplo salvo em: {sample_path}")
+        logger.info(f"Dataset de exemplo (dados médicos gerais) salvo em: {sample_path}")
         
         return df
     
@@ -154,7 +171,7 @@ class DataPreparation:
         Prepara os dados para o formato de treinamento.
         
         Args:
-            df: DataFrame com os dados
+            df: DataFrame com os dados médicos
             
         Returns:
             Dataset do Hugging Face pronto para treinamento
@@ -181,12 +198,12 @@ class DataPreparation:
     
     def prepare_dataset(self) -> Dataset:
         """
-        Pipeline completo de preparação de dados.
+        Pipeline completo de preparação de dados médicos.
         
         Returns:
             Dataset pronto para fine-tuning
         """
-        logger.info("Iniciando preparação do dataset...")
+        logger.info("Iniciando preparação do dataset médico...")
         
         # Carrega dados
         df = self.load_raw_data()
@@ -199,7 +216,7 @@ class DataPreparation:
         # Prepara para treinamento
         dataset = self.prepare_for_training(df)
         
-        logger.info("Preparação do dataset concluída!")
+        logger.info("Preparação do dataset médico concluída!")
         
         return dataset
 

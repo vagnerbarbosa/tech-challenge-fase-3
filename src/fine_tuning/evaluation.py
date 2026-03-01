@@ -6,6 +6,7 @@ Responsável por:
 - Avaliar métricas do modelo treinado
 - Gerar relatórios de performance
 - Comparar com baseline
+- Testar capacidade de responder perguntas médicas gerais
 """
 
 import os
@@ -24,7 +25,8 @@ logger = get_logger(__name__)
 
 class ModelEvaluator:
     """
-    Classe para avaliação de modelos de linguagem.
+    Classe para avaliação de modelos de linguagem médicos.
+    Avalia a capacidade do assistente generalista de responder perguntas médicas.
     """
     
     def __init__(self, model: Any, tokenizer: Any):
@@ -47,14 +49,14 @@ class ModelEvaluator:
             device=0 if self.device == "cuda" else -1,
         )
         
-        logger.info("ModelEvaluator inicializado")
+        logger.info("ModelEvaluator inicializado para assistente médico generalista")
     
     def generate_response(self, prompt: str, max_length: int = 256) -> str:
         """
-        Gera resposta para um prompt.
+        Gera resposta para um prompt médico.
         
         Args:
-            prompt: Texto de entrada
+            prompt: Texto de entrada (pergunta médica)
             max_length: Tamanho máximo da resposta
             
         Returns:
@@ -112,10 +114,10 @@ class ModelEvaluator:
         expected_answers: List[str]
     ) -> Dict[str, float]:
         """
-        Avalia qualidade das respostas de Q&A.
+        Avalia qualidade das respostas de Q&A médico.
         
         Args:
-            questions: Lista de perguntas
+            questions: Lista de perguntas médicas
             expected_answers: Lista de respostas esperadas
             
         Returns:
@@ -145,7 +147,7 @@ class ModelEvaluator:
     
     def evaluate(self, dataset: Dataset) -> Dict[str, Any]:
         """
-        Executa avaliação completa do modelo.
+        Executa avaliação completa do modelo médico generalista.
         
         Args:
             dataset: Dataset de avaliação
@@ -153,7 +155,7 @@ class ModelEvaluator:
         Returns:
             Dicionário com todas as métricas
         """
-        logger.info("Iniciando avaliação do modelo...")
+        logger.info("Iniciando avaliação do modelo médico generalista...")
         
         metrics = {}
         
@@ -165,12 +167,12 @@ class ModelEvaluator:
         metrics['perplexity'] = self.calculate_perplexity(texts)
         logger.info(f"Perplexidade: {metrics['perplexity']:.2f}")
         
-        # Teste de geração
-        logger.info("Testando geração de respostas...")
+        # Teste de geração com perguntas médicas gerais
+        logger.info("Testando geração de respostas médicas...")
         test_prompts = [
-            "O que é diabetes?",
-            "Quais os sintomas de hipoglicemia?",
-            "Como controlar a glicemia?",
+            "Quais são os sintomas de uma gripe?",
+            "Quando devo procurar um médico?",
+            "Como melhorar minha qualidade de sono?",
         ]
         
         for prompt in test_prompts:
@@ -178,7 +180,7 @@ class ModelEvaluator:
             logger.info(f"\nPergunta: {prompt}")
             logger.info(f"Resposta: {response[:200]}...")
         
-        logger.info("\nAvaliação concluída!")
+        logger.info("\nAvaliação do assistente médico generalista concluída!")
         
         return metrics
 

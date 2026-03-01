@@ -1,4 +1,4 @@
-# 🏥 Assistente Virtual Médico - Tech Challenge Fase 3
+# 🏥 Assistente Virtual Médico Generalista - Tech Challenge Fase 3
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![LangChain](https://img.shields.io/badge/LangChain-latest-green.svg)](https://langchain.com/)
@@ -6,7 +6,7 @@
 
 ## 📋 Descrição do Projeto
 
-Este projeto implementa um **Assistente Virtual Médico Personalizado** utilizando técnicas avançadas de processamento de linguagem natural (NLP) e aprendizado de máquina. O sistema combina:
+Este projeto implementa um **Assistente Virtual Médico Generalista** utilizando técnicas avançadas de processamento de linguagem natural (NLP) e aprendizado de máquina. O sistema combina:
 
 - 🔧 **Fine-tuning de LLM** (Large Language Model)
 - 🔗 **LangChain** para integração e orquestração
@@ -15,12 +15,13 @@ Este projeto implementa um **Assistente Virtual Médico Personalizado** utilizan
 
 ## 🎯 Objetivo da Fase 3
 
-Desenvolver um assistente virtual médico capaz de:
+Desenvolver um assistente virtual médico generalista capaz de:
 
-1. **Responder perguntas** sobre condições médicas (foco em diabetes)
-2. **Fornecer orientações** personalizadas baseadas em dados clínicos
+1. **Responder perguntas** sobre diversas condições médicas e sintomas
+2. **Fornecer orientações** gerais de saúde e bem-estar
 3. **Manter conversação** contextualizada e segura
 4. **Garantir privacidade** através de anonimização de dados
+5. **Orientar encaminhamento** para especialistas quando necessário
 
 ## 📁 Estrutura do Repositório
 
@@ -137,11 +138,21 @@ pytest tests/ -v
 
 ## 📊 Dataset
 
-O projeto utiliza dados médicos relacionados a diabetes, seguindo rigorosos padrões de:
+O projeto utiliza dados médicos de diversas especialidades, seguindo rigorosos padrões de:
 
 - ✅ **LGPD** - Lei Geral de Proteção de Dados
 - ✅ **Anonimização** - Remoção de dados identificáveis
 - ✅ **Segurança** - Validação de inputs e outputs
+
+## 🏥 Áreas de Atuação
+
+O assistente pode fornecer informações educativas sobre:
+
+- **Clínica Geral**: sintomas comuns, orientações gerais
+- **Prevenção**: hábitos saudáveis, check-ups recomendados
+- **Emergências**: reconhecimento de sinais de alerta
+- **Medicamentos**: informações gerais (não substituindo prescrição)
+- **Encaminhamentos**: orientação sobre especialidades médicas
 
 ## 📝 Licença
 

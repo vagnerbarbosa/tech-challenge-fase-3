@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Tech Challenge Fase 3 - Assistente Virtual Médico
-=================================================
+Tech Challenge Fase 3 - Assistente Virtual Médico Generalista
+=============================================================
 
 Script principal que orquestra todo o pipeline:
-1. Preparação e anonimização de dados
+1. Preparação e anonimização de dados médicos
 2. Fine-tuning do modelo LLM
 3. Avaliação do modelo
-4. Execução do assistente com LangChain
+4. Execução do assistente médico generalista com LangChain
 
 Autor: Vagner Barbosa
 Data: Março 2026
@@ -42,12 +42,12 @@ def main():
     logger = get_logger(__name__)
     
     logger.info("="*60)
-    logger.info("Tech Challenge Fase 3 - Assistente Virtual Médico")
+    logger.info("Tech Challenge Fase 3 - Assistente Virtual Médico Generalista")
     logger.info("="*60)
     
     try:
         # Etapa 1: Preparação de Dados
-        logger.info("\n📊 Etapa 1: Preparação e Anonimização de Dados")
+        logger.info("\n📊 Etapa 1: Preparação e Anonimização de Dados Médicos")
         data_prep = DataPreparation()
         dataset = data_prep.prepare_dataset()
         logger.info(f"Dataset preparado com {len(dataset)} registros")
@@ -65,7 +65,7 @@ def main():
         logger.info(f"Métricas de avaliação: {metrics}")
         
         # Etapa 4: Configuração do Assistente
-        logger.info("\n🤖 Etapa 4: Configuração do Assistente com LangChain")
+        logger.info("\n🤖 Etapa 4: Configuração do Assistente Médico Generalista")
         assistant = MedicalAssistant(model, tokenizer)
         
         # Etapa 5: Workflow com LangGraph
@@ -74,7 +74,7 @@ def main():
         
         # Modo interativo
         logger.info("\n" + "="*60)
-        logger.info("Assistente pronto! Digite 'sair' para encerrar.")
+        logger.info("Assistente Médico Generalista pronto! Digite 'sair' para encerrar.")
         logger.info("="*60 + "\n")
         
         while True:
