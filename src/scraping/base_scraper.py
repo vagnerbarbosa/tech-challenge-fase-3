@@ -50,6 +50,7 @@ class BaseScraper(ABC):
         output_path: Optional[str] = None,
         timeout: int = 30,
         max_retries: int = 3,
+        max_items: Optional[int] = None,
     ):
         """
         Inicializa o scraper base.
@@ -58,17 +59,22 @@ class BaseScraper(ABC):
             output_path: Caminho para salvar CSVs. Default: ./data/processed
             timeout: Timeout para requisições em segundos
             max_retries: Número máximo de tentativas por requisição
+            max_items: Número máximo de itens a coletar. None = sem limite
         """
         self.output_path = Path(output_path or os.getenv("DATA_PATH", "./data")) / "processed"
         self.output_path.mkdir(parents=True, exist_ok=True)
         self.timeout = timeout
         self.max_retries = max_retries
+        self.max_items = max_items
         
         # Configura sessão HTTP
         self.session = requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
         
-        logger.info(f"{self.__class__.__name__} inicializado. Output: {self.output_path}")
+        logger.info(
+            f"{self.__class__.__name__} inicializado. Output: {self.output_path}, "
+            f"max_items: {self.max_items or 'sem limite'}"
+        )
     
     def _random_delay(self) -> None:
         """Aplica delay aleatório entre requisições para respeitar o servidor."""
@@ -135,6 +141,21 @@ class BaseScraper(ABC):
             BeautifulSoup object
         """
         return BeautifulSoup(response.content, "html.parser")
+    
+    def _apply_limit(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Aplica o limite de itens se max_items estiver configurado.
+        
+        Args:
+            data: Lista de dados coletados
+            
+        Returns:
+            Lista limitada (ou original se max_items for None)
+        """
+        if self.max_items is not None and len(data) > self.max_items:
+            logger.info(f"Aplicando limite de {self.max_items} itens (total coletado: {len(data)})")
+            return data[:self.max_items]
+        return data
     
     def _save_to_csv(
         self,

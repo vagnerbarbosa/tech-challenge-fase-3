@@ -98,6 +98,43 @@ DATA_PATH=./data
 LOG_LEVEL=INFO
 ```
 
+### Parâmetro `max_items` - Limite de Itens
+
+Cada scraper suporta o parâmetro `max_items` para limitar a quantidade de dados coletados:
+
+| Scraper | Parâmetro | Default | Descrição |
+|---------|-----------|---------|-----------|
+| HCPA | `max_items` | 50 | Limite de protocolos médicos |
+| TelessaúdeRS | `max_items` | 30 | Limite de FAQs/perguntas |
+| RadReport | `max_items` | 20 | Limite de modelos de laudos |
+
+**Nota:** Use `None` para coletar todos os dados disponíveis (sem limite).
+
+#### Modificando os Limites
+
+Os limites padrão estão configurados em `run_scrapers.py`:
+
+```python
+SCRAPER_CONFIG = {
+    "hcpa": {"max_items": 50},        # Protocolos médicos
+    "telessaude": {"max_items": 30},  # FAQs/perguntas
+    "radreport": {"max_items": 20},   # Modelos de laudos
+}
+```
+
+Para alterar os limites, edite os valores no dicionário `SCRAPER_CONFIG` ou passe parâmetros diretamente:
+
+```python
+# Via função
+from src.scraping.run_scrapers import run_all_scrapers
+
+results = run_all_scrapers(
+    max_items_hcpa=100,      # Coletar até 100 protocolos
+    max_items_telessaude=50, # Coletar até 50 FAQs
+    max_items_radreport=None # Sem limite para laudos
+)
+```
+
 ### Boas Práticas Implementadas
 
 - ✅ **User-Agent** realista para simular navegador
@@ -116,13 +153,18 @@ from src.utils.logging_config import setup_logging
 # Configura logging
 setup_logging()
 
-# Executa scraper individual
-scraper = HCPAScraper(output_path="./data")
-protocolos = scraper.scrape()  # Retorna lista de dicionários
+# Executa scraper individual com limite de itens
+scraper = HCPAScraper(output_path="./data", max_items=10)
+protocolos = scraper.scrape()  # Retorna lista de dicionários (máximo 10)
 filepath = scraper.run()       # Executa e salva CSV
 
 print(f"Coletados {len(protocolos)} protocolos")
 print(f"Arquivo salvo em: {filepath}")
+
+# Exemplo sem limite (coleta todos os dados)
+scraper_full = TelessaudeScraper(max_items=None)
+faqs = scraper_full.scrape()
+print(f"Coletadas {len(faqs)} FAQs")
 ```
 
 ## 📈 Fontes de Dados

@@ -136,6 +136,28 @@ python -m src.scraping.run_scrapers
 python src/scraping/run_scrapers.py
 ```
 
+### Limites de Coleta (max_items)
+
+Os scrapers possuem limites configuráveis de itens a coletar:
+
+| Scraper | Limite Padrão | Descrição |
+|---------|---------------|-----------|
+| HCPA | 50 | Protocolos médicos |
+| TelessaúdeRS | 30 | Perguntas frequentes |
+| RadReport | 20 | Modelos de laudos |
+
+Para alterar os limites, edite `SCRAPER_CONFIG` em `src/scraping/run_scrapers.py`:
+
+```python
+SCRAPER_CONFIG = {
+    "hcpa": {"max_items": 50},        # Altere aqui
+    "telessaude": {"max_items": 30},  # Altere aqui  
+    "radreport": {"max_items": 20},   # Altere aqui
+}
+```
+
+> 📖 Para mais detalhes, veja a [documentação completa de scraping](docs/SCRAPING.md).
+
 ### Arquivos Gerados
 
 Após a execução, os seguintes arquivos serão criados em `data/processed/`:
