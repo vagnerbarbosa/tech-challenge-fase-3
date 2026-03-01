@@ -23,6 +23,17 @@ Desenvolver um assistente virtual médico generalista capaz de:
 4. **Garantir privacidade** através de anonimização de dados
 5. **Orientar encaminhamento** para especialistas quando necessário
 
+## 📊 Requisitos da Fase 3
+
+| Requisito | Descrição | Status |
+|-----------|-----------|--------|
+| Fine-tuning LLM | Customização de LLaMA/Falcon para domínio médico | 🔄 |
+| Integração LangChain | Orquestração de prompts e chains | 🔄 |
+| Fluxos LangGraph | Workflows automatizados | 🔄 |
+| Anonimização | Proteção de dados sensíveis (LGPD) | 🔄 |
+| Logging | Sistema de logs estruturado | 🔄 |
+| Validação | Verificação de segurança das respostas | 🔄 |
+
 ## 📁 Estrutura do Repositório
 
 ```
