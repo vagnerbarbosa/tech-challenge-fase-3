@@ -230,3 +230,59 @@ O scraper implementa um sistema inteligente de mapeamento que identifica automat
 4. **Limitações**: Algumas páginas podem requerer JavaScript para renderização completa. Os dados estruturados complementam o conteúdo dinâmico.
 
 5. **Validação rigorosa**: O scraper CONITEC/MS implementa validação para garantir que apenas conteúdo médico relevante seja coletado (filtros regex, palavras-chave médicas obrigatórias, remoção de entradas duplicadas).
+
+## 🔄 Sanitização e Conversão para JSONL
+
+Após a coleta dos dados via scraping, é necessário sanitizar e converter os CSVs para formato JSONL, adequado para fine-tuning de LLMs.
+
+### Execução
+
+```bash
+python -m src.data_processing.run_sanitization
+```
+
+### Processo de Sanitização
+
+1. **Limpeza de texto**: Remove tags HTML, caracteres especiais e espaços múltiplos
+2. **Validação de tamanho**: instruction ≥ 5 caracteres, output ≥ 10 caracteres
+3. **Remoção de duplicatas**: Baseado em título normalizado
+4. **Transformação de colunas**: Mapeia colunas originais para formato instruction/input/output
+
+### Transformações por Arquivo
+
+| Arquivo Original | instruction | input | output |
+|------------------|-------------|-------|--------|
+| `perguntas_frequentes.csv` | pergunta | especialidade + categoria | resposta |
+| `modelos_laudos.csv` | "Como estruturar um laudo de {nome}?" | modalidade + indicacoes | estrutura_laudo |
+| `protocolos_medicos.csv` | "Quais são as diretrizes do protocolo de {titulo}?" | especialidade | descricao |
+
+### Arquivos Gerados
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `perguntas_frequentes.jsonl` | FAQs convertidas para instruction/output |
+| `modelos_laudos.jsonl` | Templates de laudos com instruções sintéticas |
+| `protocolos_medicos.jsonl` | Protocolos convertidos para formato de QA |
+| `medical_data_unified.jsonl` | Todos os dados unificados (recomendado para training) |
+| `sanitization_report.json` | Relatório de estatísticas da sanitização |
+
+### Formato JSONL
+
+Cada linha do arquivo JSONL contém um objeto JSON com:
+
+```json
+{
+  "instruction": "Pergunta ou instrução para o modelo",
+  "input": "Contexto adicional opcional",
+  "output": "Resposta esperada",
+  "source": "Fonte dos dados (TelessaúdeRS, RadReport, CONITEC/MS)",
+  "category": "Categoria (perguntas_frequentes, modelos_laudos, protocolos_medicos)"
+}
+```
+
+### Estatísticas de Sanitização
+
+O script gera um relatório com:
+- Total de registros de entrada/saída
+- Registros removidos (HTML, curtos, vazios, duplicados)
+- Taxa de aproveitamento
