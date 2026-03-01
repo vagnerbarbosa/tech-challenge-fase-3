@@ -169,11 +169,15 @@ O assistente pode fornecer informações educativas sobre:
 
 Este projeto é desenvolvido para fins acadêmicos como parte da pós-graduação em IA para Desenvolvedores (IADT).
 
-## 👨‍💻 Autor
+## 👥 Equipe
 
-**Vagner Barbosa**
-- GitHub: [@vagnerbarbosa](https://github.com/vagnerbarbosa)
-- Website: [vagnerbarbosa.com](https://www.vagnerbarbosa.com)
+Este projeto foi desenvolvido por:
+
+- [Adriel Santos](https://github.com/AdrielCandido)
+- [João Marcos](https://github.com/joaomarcos999)
+- [Leticia Nepomucena](https://github.com/LeticiaNepomucena)
+- [Lucas Silva](https://github.com/lucfsilva)
+- [Vagner Barbosa](https://github.com/vagnerbarbosa)
 
 ---
 
