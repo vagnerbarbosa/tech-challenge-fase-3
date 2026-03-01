@@ -27,7 +27,7 @@ Desenvolver um assistente virtual médico generalista capaz de:
 
 | Requisito | Descrição | Status |
 |-----------|-----------|--------|
-| Fine-tuning LLM | Customização de LLaMA/Falcon para domínio médico | 🔄 |
+| Fine-tuning LLM | Customização de LLaMA/Falcon para domínio médico | ✅ |
 | Integração LangChain | Orquestração de prompts e chains | 🔄 |
 | Fluxos LangGraph | Workflows automatizados | 🔄 |
 | Anonimização | Proteção de dados sensíveis (LGPD) | 🔄 |
