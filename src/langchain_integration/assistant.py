@@ -1,8 +1,9 @@
 """
-Assistente Virtual Médico
-=========================
+Assistente Virtual Médico Generalista
+=====================================
 
-Implementa o assistente médico usando LangChain.
+Implementa o assistente médico generalista usando LangChain.
+Capaz de responder perguntas sobre diversas condições médicas e orientar pacientes.
 """
 
 import os
@@ -22,12 +23,13 @@ logger = get_logger(__name__)
 
 class MedicalAssistant:
     """
-    Assistente virtual médico especializado em diabetes.
+    Assistente virtual médico generalista.
+    Fornece informações educativas sobre diversas condições de saúde.
     """
     
     def __init__(self, model: Any = None, tokenizer: Any = None):
         """
-        Inicializa o assistente médico.
+        Inicializa o assistente médico generalista.
         
         Args:
             model: Modelo LLM treinado
@@ -50,16 +52,16 @@ class MedicalAssistant:
         # Prompt do sistema
         self.system_prompt = self._create_system_prompt()
         
-        logger.info("MedicalAssistant inicializado")
+        logger.info("MedicalAssistant (Generalista) inicializado")
     
     def _create_system_prompt(self) -> str:
         """
-        Cria o prompt do sistema para o assistente.
+        Cria o prompt do sistema para o assistente médico generalista.
         
         Returns:
             Prompt do sistema
         """
-        return """Você é um assistente virtual médico especializado em diabetes.
+        return """Você é um assistente virtual médico generalista.
 
 Diretrizes:
 1. Forneça informações precisas e baseadas em evidências científicas
@@ -68,6 +70,8 @@ Diretrizes:
 4. Seja empático e acolhedor nas respostas
 5. Use linguagem clara e acessível
 6. Respeite a privacidade do paciente
+7. Oriente sobre quando buscar atendimento de emergência
+8. Sugira especialistas adequados quando pertinente
 
 Aviso importante: Este assistente fornece apenas informações educativas.
 Para diagnósticos e tratamentos, sempre consulte um profissional de saúde.
@@ -141,11 +145,13 @@ Se você está enfrentando uma emergência médica:
 3. Não dirija se estiver se sentindo mal
 
 Sintomas que requerem atendimento imediato:
-- Confusão mental ou perda de consciência
-- Glicemia muito alta (>400 mg/dL) ou muito baixa (<54 mg/dL)
+- Dor intensa no peito
 - Dificuldade para respirar
-- Dor no peito
-- Vômitos persistentes
+- Perda de consciência ou confusão mental
+- Sangramento intenso
+- Sinais de AVC (rosto caído, fraqueza, fala arrastada)
+- Reações alérgicas graves
+- Febre muito alta que não cede
 
 Este assistente não substitui atendimento médico de emergência."""
         
@@ -173,13 +179,13 @@ Este assistente não substitui atendimento médico de emergência."""
 
 
 if __name__ == "__main__":
-    # Teste básico do assistente
+    # Teste básico do assistente generalista
     assistant = MedicalAssistant()
     
     test_questions = [
-        "O que é diabetes?",
-        "Quais são os sintomas?",
-        "Estou me sentindo muito mal e confuso",
+        "Quais são os sintomas de uma gripe?",
+        "Quando devo procurar um médico?",
+        "Estou com dor forte no peito e dificuldade para respirar",
     ]
     
     for question in test_questions:

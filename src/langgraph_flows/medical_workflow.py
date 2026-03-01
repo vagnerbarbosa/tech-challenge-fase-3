@@ -2,7 +2,8 @@
 Workflow Médico com LangGraph
 =============================
 
-Implementa fluxos automatizados para o assistente médico.
+Implementa fluxos automatizados para o assistente médico generalista.
+Suporta diversos tipos de consultas médicas e orientações de saúde.
 """
 
 from typing import Any, Dict, TypedDict, Annotated, Sequence
@@ -22,7 +23,7 @@ class MessageType(str, Enum):
     GREETING = "greeting"
     QUESTION = "question"
     EMERGENCY = "emergency"
-    GLYCEMIA = "glycemia"
+    VITAL_SIGNS = "vital_signs"
     GENERAL = "general"
     FAREWELL = "farewell"
 
@@ -33,13 +34,13 @@ class WorkflowState(TypedDict):
     message_type: str
     user_input: str
     response: str
-    glycemia_value: float
+    temperature_value: float
     requires_followup: bool
 
 
 class MedicalWorkflow:
     """
-    Workflow médico usando LangGraph.
+    Workflow médico generalista usando LangGraph.
     """
     
     def __init__(self, assistant: Any = None):
@@ -53,7 +54,7 @@ class MedicalWorkflow:
         self.tools = MedicalTools()
         self.graph = self._build_graph()
         
-        logger.info("MedicalWorkflow inicializado")
+        logger.info("MedicalWorkflow (Generalista) inicializado")
     
     def _build_graph(self) -> StateGraph:
         """
@@ -69,7 +70,7 @@ class MedicalWorkflow:
         workflow.add_node("classify", self._classify_message)
         workflow.add_node("handle_greeting", self._handle_greeting)
         workflow.add_node("handle_emergency", self._handle_emergency)
-        workflow.add_node("handle_glycemia", self._handle_glycemia)
+        workflow.add_node("handle_vital_signs", self._handle_vital_signs)
         workflow.add_node("handle_question", self._handle_question)
         workflow.add_node("handle_farewell", self._handle_farewell)
         workflow.add_node("generate_response", self._generate_response)
@@ -84,7 +85,7 @@ class MedicalWorkflow:
             {
                 MessageType.GREETING: "handle_greeting",
                 MessageType.EMERGENCY: "handle_emergency",
-                MessageType.GLYCEMIA: "handle_glycemia",
+                MessageType.VITAL_SIGNS: "handle_vital_signs",
                 MessageType.QUESTION: "handle_question",
                 MessageType.FAREWELL: "handle_farewell",
                 MessageType.GENERAL: "handle_question",
@@ -92,7 +93,7 @@ class MedicalWorkflow:
         )
         
         # Conecta handlers ao gerador de resposta
-        for node in ["handle_greeting", "handle_emergency", "handle_glycemia", 
+        for node in ["handle_greeting", "handle_emergency", "handle_vital_signs", 
                      "handle_question", "handle_farewell"]:
             workflow.add_edge(node, "generate_response")
         
@@ -120,9 +121,9 @@ class MedicalWorkflow:
             state["message_type"] = MessageType.FAREWELL
         elif self.tools.is_emergency_question(user_input):
             state["message_type"] = MessageType.EMERGENCY
-        elif self.tools.extract_glycemia_value(user_input) is not None:
-            state["message_type"] = MessageType.GLYCEMIA
-            state["glycemia_value"] = self.tools.extract_glycemia_value(user_input)
+        elif self.tools.extract_temperature_value(user_input) is not None:
+            state["message_type"] = MessageType.VITAL_SIGNS
+            state["temperature_value"] = self.tools.extract_temperature_value(user_input)
         else:
             state["message_type"] = MessageType.QUESTION
         
@@ -146,13 +147,14 @@ class MedicalWorkflow:
         """
         Trata saudações.
         """
-        state["response"] = """Olá! 👋 Sou seu assistente virtual médico especializado em diabetes.
+        state["response"] = """Olá! 👋 Sou seu assistente virtual médico generalista.
 
 Posso ajudá-lo com:
-• Informações sobre diabetes tipo 1 e tipo 2
-• Dúvidas sobre sintomas e prevenção
-• Orientações sobre alimentação e estilo de vida
-• Interpretação de valores de glicemia
+• Informações sobre sintomas e condições de saúde
+• Orientações gerais de prevenção e bem-estar
+• Dicas de quando procurar atendimento médico
+• Esclarecimentos sobre exames e procedimentos
+• Orientação sobre especialidades médicas
 
 Como posso ajudá-lo hoje?
 
@@ -174,21 +176,24 @@ AÇÕES IMEDIATAS:
 3. ❌ NÃO dirija se estiver se sentindo mal
 
 Sintomas que requerem atendimento imediato:
-• Confusão mental ou desmaio
-• Glicemia < 54 mg/dL ou > 400 mg/dL
-• Dificuldade respiratória
-• Vômitos persistentes
+• Dor intensa no peito
+• Dificuldade respiratória severa
+• Perda de consciência ou confusão mental
+• Sangramento intenso que não para
+• Sinais de AVC (rosto caído, fraqueza em um lado, fala arrastada)
+• Reações alérgicas graves (inchaço, dificuldade de respirar)
+• Febre muito alta (> 39.5°C) que não cede
 
 Este assistente NÃO substitui atendimento de emergência!"""
         
         return state
     
-    def _handle_glycemia(self, state: WorkflowState) -> WorkflowState:
+    def _handle_vital_signs(self, state: WorkflowState) -> WorkflowState:
         """
-        Trata valores de glicemia.
+        Trata valores de sinais vitais (como temperatura).
         """
-        value = state.get("glycemia_value", 0)
-        result = self.tools.interpret_glycemia(value)
+        value = state.get("temperature_value", 0)
+        result = self.tools.interpret_temperature(value)
         
         alert_emoji = {
             "normal": "✅",
@@ -199,41 +204,48 @@ Este assistente NÃO substitui atendimento de emergência!"""
         
         emoji = alert_emoji.get(result["alert_level"], "ℹ️")
         
-        state["response"] = f"""📊 ANÁLISE DE GLICEMIA
+        state["response"] = f"""📊 ANÁLISE DE TEMPERATURA CORPORAL
 
-Valor informado: {value} mg/dL
+Valor informado: {value}°C
 
 {emoji} Classificação: {result['classification']}
 
 💡 Recomendação: {result['recommendation']}
 
-📌 Valores de referência (jejum):
-• Normal: 70-99 mg/dL
-• Pré-diabetes: 100-125 mg/dL
-• Indicativo de diabetes: ≥126 mg/dL
+📌 Valores de referência:
+• Normal: 36.1-37.2°C
+• Febrícula: 37.3-37.8°C
+• Febre: 37.9-39°C
+• Febre alta: > 39°C
 
 ⚠️ Esta análise é apenas informativa.
-Consulte seu médico para avaliação completa."""
+Consulte seu médico para avaliação completa, especialmente se houver outros sintomas."""
         
         return state
     
     def _handle_question(self, state: WorkflowState) -> WorkflowState:
         """
-        Trata perguntas gerais.
+        Trata perguntas gerais de saúde.
         """
+        # Verifica se pode sugerir especialidade
+        specialty = self.tools.suggest_specialty(state["user_input"])
+        specialty_hint = ""
+        if specialty:
+            specialty_hint = f"\n\n💡 Com base nos sintomas descritos, um(a) {specialty} pode ser indicado(a) para avaliação."
+        
         if self.assistant:
-            state["response"] = self.assistant.process_message(state["user_input"])
+            state["response"] = self.assistant.process_message(state["user_input"]) + specialty_hint
         else:
             state["response"] = f"""Obrigado pela sua pergunta!
 
 Você perguntou: "{state['user_input']}"
 
-Como assistente virtual médico especializado em diabetes, posso fornecer informações educativas sobre a condição.
+Como assistente virtual médico generalista, posso fornecer informações educativas sobre saúde e bem-estar.
 
 Para uma resposta mais completa e personalizada, recomendo:
-1. Consultar um médico endocrinologista
+1. Consultar um médico adequado para sua necessidade
 2. Levar suas dúvidas anotadas para a consulta
-3. Compartilhar seus exames recentes com o profissional
+3. Compartilhar seus exames recentes com o profissional{specialty_hint}
 
 Posso ajudar com mais alguma dúvida?"""
         
@@ -245,11 +257,13 @@ Posso ajudar com mais alguma dúvida?"""
         """
         state["response"] = """Obrigado por conversar comigo! 👋
 
-Lembre-se:
+Lembre-se das dicas de saúde:
 ✅ Mantenha suas consultas médicas em dia
-✅ Monitore sua glicemia regularmente
-✅ Siga uma alimentação equilibrada
-✅ Pratique exercícios físicos
+✅ Pratique exercícios físicos regularmente
+✅ Alimente-se de forma equilibrada
+✅ Durma bem (7-9 horas por noite)
+✅ Cuide da sua saúde mental
+✅ Mantenha suas vacinas atualizadas
 
 Cuide-se bem! Estarei aqui sempre que precisar. 💙"""
         
@@ -282,7 +296,7 @@ Cuide-se bem! Estarei aqui sempre que precisar. 💙"""
             "message_type": MessageType.GENERAL,
             "user_input": user_input,
             "response": "",
-            "glycemia_value": 0.0,
+            "temperature_value": 0.0,
             "requires_followup": False,
         }
         
@@ -295,14 +309,14 @@ Cuide-se bem! Estarei aqui sempre que precisar. 💙"""
 
 
 if __name__ == "__main__":
-    # Teste do workflow
+    # Teste do workflow generalista
     workflow = MedicalWorkflow()
     
     test_messages = [
         "Olá!",
-        "O que é diabetes?",
-        "Minha glicemia está em 180 mg/dL",
-        "Estou me sentindo muito confuso",
+        "Quais são os sintomas de uma gripe?",
+        "Minha temperatura está em 38.5 graus",
+        "Estou com dor forte no peito",
         "Tchau!",
     ]
     

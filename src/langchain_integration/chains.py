@@ -2,7 +2,7 @@
 Chains do LangChain
 ===================
 
-Implementa as chains para o assistente médico.
+Implementa as chains para o assistente médico generalista.
 """
 
 from typing import Any, Optional
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 class MedicalChains:
     """
-    Classe que define as chains do LangChain para o assistente médico.
+    Classe que define as chains do LangChain para o assistente médico generalista.
     """
     
     def __init__(self, model: Any = None, tokenizer: Any = None):
@@ -35,21 +35,22 @@ class MedicalChains:
         self.qa_chain = self._create_qa_chain()
         self.summary_chain = self._create_summary_chain()
         
-        logger.info("MedicalChains inicializado")
+        logger.info("MedicalChains inicializado para assistente generalista")
     
     def _create_qa_chain(self):
         """
-        Cria a chain de perguntas e respostas.
+        Cria a chain de perguntas e respostas médicas.
         
         Returns:
             Chain de Q&A
         """
-        # Template de prompt para Q&A médico
+        # Template de prompt para Q&A médico generalista
         qa_template = ChatPromptTemplate.from_messages([
-            ("system", """Você é um assistente médico especializado em diabetes.
+            ("system", """Você é um assistente médico generalista.
 Responda de forma clara, precisa e empática.
 Sempre recomende consultar um médico para diagnósticos.
-Não forneça diagnósticos - apenas informações educativas."""),
+Não forneça diagnósticos - apenas informações educativas.
+Oriente sobre quando buscar atendimento especializado."""),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}"),
         ])
@@ -81,7 +82,7 @@ Não forneça diagnósticos - apenas informações educativas."""),
             def default_response(inputs):
                 return f"""Obrigado pela sua pergunta sobre: {inputs['question']}
 
-Como assistente médico especializado em diabetes, posso fornecer informações educativas.
+Como assistente médico generalista, posso fornecer informações educativas sobre saúde.
 Para uma resposta completa, o modelo de fine-tuning precisa estar carregado.
 
 Lembre-se: sempre consulte um profissional de saúde para orientações específicas."""
@@ -115,7 +116,7 @@ Resumo:"""
     
     def get_qa_response(self, question: str, chat_history: list = None) -> str:
         """
-        Obtém resposta para uma pergunta.
+        Obtém resposta para uma pergunta médica.
         
         Args:
             question: Pergunta do usuário
@@ -132,5 +133,5 @@ Resumo:"""
 
 if __name__ == "__main__":
     chains = MedicalChains()
-    response = chains.get_qa_response("O que é diabetes tipo 2?")
+    response = chains.get_qa_response("Quais são os sintomas de uma gripe?")
     print(f"Resposta: {response}")
