@@ -157,11 +157,22 @@ pytest tests/ -v
 
 ## 📊 Dataset
 
-O projeto utiliza dados médicos de diversas especialidades, seguindo rigorosos padrões de:
+O projeto utiliza dados médicos de diversas especialidades, coletados via web scraping de fontes oficiais:
+
+### Fontes de Dados
+
+| Fonte | Descrição | Arquivo |
+|-------|-----------|---------|
+| **CONITEC/MS** | Protocolos Clínicos e Diretrizes Terapêuticas do Ministério da Saúde | `protocolos_medicos.csv` |
+| **TelessaúdeRS** | Perguntas frequentes e telecondutas da UFRGS | `perguntas_frequentes.csv` |
+| **RadReport** | Templates de laudos radiológicos da RSNA | `modelos_laudos.csv` |
+
+### Qualidade dos Dados
 
 - ✅ **LGPD** - Lei Geral de Proteção de Dados
 - ✅ **Anonimização** - Remoção de dados identificáveis
 - ✅ **Segurança** - Validação de inputs e outputs
+- ✅ **Validação rigorosa** - 100% dos registros validados
 
 ## 🏥 Áreas de Atuação
 
