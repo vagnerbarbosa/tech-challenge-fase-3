@@ -113,11 +113,15 @@ class HCPAScraper(BaseScraper):
         },
     ]
     
-    def __init__(self, **kwargs):
+    def __init__(self, max_items: int = None, **kwargs):
         """
         Inicializa o scraper do HCPA.
+        
+        Args:
+            max_items: Número máximo de protocolos a coletar. None = sem limite.
+            **kwargs: Argumentos adicionais para BaseScraper
         """
-        super().__init__(**kwargs)
+        super().__init__(max_items=max_items, **kwargs)
         logger.info("HCPAScraper inicializado para coleta de protocolos médicos")
     
     def _scrape_protocol_page(self, url: str) -> List[Dict[str, Any]]:
@@ -218,7 +222,9 @@ class HCPAScraper(BaseScraper):
                 unique_protocols.append(p)
         
         logger.info(f"Total de protocolos coletados: {len(unique_protocols)}")
-        return unique_protocols
+        
+        # Aplica limite de itens se configurado
+        return self._apply_limit(unique_protocols)
     
     def run(self) -> Path:
         """

@@ -126,11 +126,15 @@ class TelessaudeScraper(BaseScraper):
         },
     ]
     
-    def __init__(self, **kwargs):
+    def __init__(self, max_items: int = None, **kwargs):
         """
         Inicializa o scraper do TelessaúdeRS.
+        
+        Args:
+            max_items: Número máximo de FAQs a coletar. None = sem limite.
+            **kwargs: Argumentos adicionais para BaseScraper
         """
-        super().__init__(**kwargs)
+        super().__init__(max_items=max_items, **kwargs)
         logger.info("TelessaudeScraper inicializado para coleta de FAQs médicas")
     
     def _scrape_content_page(self, url: str) -> List[Dict[str, Any]]:
@@ -218,7 +222,9 @@ class TelessaudeScraper(BaseScraper):
                 unique_items.append(item)
         
         logger.info(f"Total de FAQs coletadas: {len(unique_items)}")
-        return unique_items
+        
+        # Aplica limite de itens se configurado
+        return self._apply_limit(unique_items)
     
     def run(self) -> Path:
         """

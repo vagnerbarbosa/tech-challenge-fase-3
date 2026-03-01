@@ -314,11 +314,15 @@ IMPRESSÃO:
         },
     ]
     
-    def __init__(self, **kwargs):
+    def __init__(self, max_items: int = None, **kwargs):
         """
         Inicializa o scraper do RadReport.
+        
+        Args:
+            max_items: Número máximo de modelos de laudos a coletar. None = sem limite.
+            **kwargs: Argumentos adicionais para BaseScraper
         """
-        super().__init__(**kwargs)
+        super().__init__(max_items=max_items, **kwargs)
         logger.info("RadReportScraper inicializado para coleta de modelos de laudos")
     
     def _scrape_template_page(self, url: str) -> List[Dict[str, Any]]:
@@ -406,7 +410,9 @@ IMPRESSÃO:
                 unique_templates.append(t)
         
         logger.info(f"Total de modelos de laudos coletados: {len(unique_templates)}")
-        return unique_templates
+        
+        # Aplica limite de itens se configurado
+        return self._apply_limit(unique_templates)
     
     def run(self) -> Path:
         """
