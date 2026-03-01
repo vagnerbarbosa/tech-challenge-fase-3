@@ -39,8 +39,7 @@ Desenvolver um assistente virtual médico generalista capaz de:
 ```
 projeto_fase3/
 ├── data/                          # Datasets
-│   ├── raw/                       # Dados brutos (não versionados)
-│   └── processed/                 # Dados processados e anonimizados
+│   └── processed/                 # Dados processados (gerados via web scraping)
 ├── notebooks/                     # Jupyter notebooks para experimentação
 ├── src/
 │   ├── fine_tuning/              # Pipeline de fine-tuning
