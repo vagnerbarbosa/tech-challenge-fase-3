@@ -3,16 +3,21 @@ Módulo de Preparação e Anonimização de Dados
 ============================================
 
 Responsável por:
-- Carregar dados médicos gerais
+- Carregar dados médicos gerais (CSV ou JSONL)
 - Anonimizar informações sensíveis (LGPD)
 - Preparar dataset para fine-tuning do assistente generalista
+
+Formatos suportados:
+- CSV: arquivos com colunas instruction, input, output
+- JSONL: arquivos JSON Lines com campos instruction, input, output
 """
 
 import os
 import re
+import json
 import pandas as pd
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from datasets import Dataset, DatasetDict
 
 from src.utils.logging_config import get_logger
@@ -82,9 +87,46 @@ class DataPreparation:
         
         return anonymized
     
-    def load_raw_data(self, filename: str = "medical_data.csv") -> pd.DataFrame:
+    def load_jsonl(self, file_path: Union[str, Path]) -> pd.DataFrame:
         """
-        Carrega dados brutos do arquivo.
+        Carrega dados de um arquivo JSONL.
+        
+        Args:
+            file_path: Caminho para o arquivo JSONL
+            
+        Returns:
+            DataFrame com os dados carregados
+        """
+        file_path = Path(file_path)
+        records = []
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                    records.append(record)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Linha {line_num} inválida em {file_path.name}: {e}")
+        
+        if not records:
+            logger.warning(f"Nenhum registro válido em {file_path}")
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(records)
+        logger.info(f"JSONL carregado: {len(df)} registros de {file_path.name}")
+        return df
+    
+    def load_raw_data(self, filename: str = "medical_data_unified.jsonl") -> pd.DataFrame:
+        """
+        Carrega dados brutos do arquivo (CSV ou JSONL).
+        
+        Prioridade de busca:
+        1. JSONL unificado (medical_data_unified.jsonl)
+        2. CSV no raw_path
+        3. Dataset de exemplo
         
         Args:
             filename: Nome do arquivo de dados médicos
@@ -92,18 +134,49 @@ class DataPreparation:
         Returns:
             DataFrame com os dados carregados
         """
+        # Tenta carregar JSONL unificado primeiro
+        jsonl_unified = self.processed_path / "medical_data_unified.jsonl"
+        if jsonl_unified.exists():
+            logger.info(f"Carregando JSONL unificado: {jsonl_unified}")
+            return self.load_jsonl(jsonl_unified)
+        
+        # Tenta carregar arquivo especificado
         file_path = self.raw_path / filename
         
-        if not file_path.exists():
-            logger.warning(f"Arquivo não encontrado: {file_path}")
-            logger.info("Criando dataset de exemplo com dados médicos gerais...")
-            return self._create_sample_dataset()
+        # Determina formato pelo sufixo
+        if file_path.suffix.lower() == '.jsonl':
+            if file_path.exists():
+                return self.load_jsonl(file_path)
+            # Tenta na pasta processed
+            processed_path = self.processed_path / filename
+            if processed_path.exists():
+                return self.load_jsonl(processed_path)
+        elif file_path.suffix.lower() == '.csv':
+            if file_path.exists():
+                logger.info(f"Carregando CSV: {file_path}")
+                df = pd.read_csv(file_path, encoding='utf-8-sig')
+                logger.info(f"Dados carregados: {len(df)} registros")
+                return df
         
-        logger.info(f"Carregando dados de: {file_path}")
-        df = pd.read_csv(file_path)
-        logger.info(f"Dados carregados: {len(df)} registros, {len(df.columns)} colunas")
+        # Se não encontrar nada, tenta CSVs individuais no processed
+        logger.info("Tentando carregar CSVs individuais processados...")
+        dfs = []
+        for csv_file in ['perguntas_frequentes.csv', 'modelos_laudos.csv', 'protocolos_medicos.csv']:
+            csv_path = self.processed_path / csv_file
+            if csv_path.exists():
+                df = pd.read_csv(csv_path, encoding='utf-8-sig')
+                dfs.append(df)
+                logger.info(f"Carregado: {csv_file} ({len(df)} registros)")
         
-        return df
+        if dfs:
+            # Combina e normaliza colunas
+            combined = pd.concat(dfs, ignore_index=True)
+            logger.info(f"Total combinado: {len(combined)} registros")
+            return combined
+        
+        logger.warning("Nenhum arquivo de dados encontrado")
+        logger.info("Criando dataset de exemplo com dados médicos gerais...")
+        return self._create_sample_dataset()
     
     def _create_sample_dataset(self) -> pd.DataFrame:
         """

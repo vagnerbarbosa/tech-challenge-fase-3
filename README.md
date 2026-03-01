@@ -111,7 +111,12 @@ huggingface-cli login
 python -m src.scraping.run_scrapers
 ```
 
-> ⚠️ **Importante**: Os arquivos CSV de dados processados **não são versionados** no repositório. Na primeira execução do projeto, você precisa executar os scrapers para gerar esses dados localmente.
+7. **Sanitize os dados para formato JSONL**
+```bash
+python -m src.data_processing.run_sanitization
+```
+
+> ⚠️ **Importante**: Os arquivos CSV e JSONL de dados processados **não são versionados** no repositório. Na primeira execução do projeto, você precisa executar os scrapers e depois a sanitização para gerar esses dados localmente.
 
 > 📖 Para documentação completa do módulo de scraping, consulte [SCRAPING.md](docs/SCRAPING.md)
 
@@ -157,20 +162,31 @@ pytest tests/ -v
 
 ## 📊 Dataset
 
-O projeto utiliza dados médicos de diversas especialidades, coletados via web scraping de fontes oficiais:
+O projeto utiliza dados médicos de diversas especialidades, coletados via web scraping de fontes oficiais e processados para formato JSONL:
 
 ### Fontes de Dados
 
-| Fonte | Descrição | Arquivo |
-|-------|-----------|---------|
-| **CONITEC/MS** | Protocolos Clínicos e Diretrizes Terapêuticas do Ministério da Saúde | `protocolos_medicos.csv` |
-| **TelessaúdeRS** | Perguntas frequentes e telecondutas da UFRGS | `perguntas_frequentes.csv` |
-| **RadReport** | Templates de laudos radiológicos da RSNA | `modelos_laudos.csv` |
+| Fonte | Descrição | CSV | JSONL |
+|-------|-----------|-----|-------|
+| **CONITEC/MS** | Protocolos Clínicos e Diretrizes Terapêuticas do Ministério da Saúde | `protocolos_medicos.csv` | `protocolos_medicos.jsonl` |
+| **TelessaúdeRS** | Perguntas frequentes e telecondutas da UFRGS | `perguntas_frequentes.csv` | `perguntas_frequentes.jsonl` |
+| **RadReport** | Templates de laudos radiológicos da RSNA | `modelos_laudos.csv` | `modelos_laudos.jsonl` |
+
+### Formato JSONL para Fine-tuning
+
+Os dados são sanitizados e convertidos para formato instruction/input/output:
+
+```json
+{"instruction": "Pergunta ou instrução", "input": "Contexto opcional", "output": "Resposta", "source": "Fonte", "category": "Categoria"}
+```
+
+O arquivo unificado `medical_data_unified.jsonl` contém todos os registros para treinamento.
 
 ### Qualidade dos Dados
 
 - ✅ **LGPD** - Lei Geral de Proteção de Dados
 - ✅ **Anonimização** - Remoção de dados identificáveis
+- ✅ **Sanitização** - Limpeza de HTML, caracteres especiais e validação de tamanho
 - ✅ **Segurança** - Validação de inputs e outputs
 - ✅ **Validação rigorosa** - 100% dos registros validados
 

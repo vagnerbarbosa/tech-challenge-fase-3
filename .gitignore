@@ -76,8 +76,10 @@ models/*.gguf
 logs/*.log
 logs/*.txt
 
-# Data (dados processados - gerados pelos scrapers)
+# Data (dados processados - gerados pelos scrapers e sanitização)
 data/processed/*.csv
+data/processed/*.jsonl
+data/processed/sanitization_report.json
 !data/processed/.gitkeep
 
 # Documentação (manter apenas Markdown)
