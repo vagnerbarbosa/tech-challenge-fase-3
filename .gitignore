@@ -76,13 +76,12 @@ models/*.gguf
 logs/*.log
 logs/*.txt
 
-# Data (dados brutos)
-data/raw/*
-!data/raw/.gitkeep
-
 # Data (dados processados - gerados pelos scrapers)
 data/processed/*.csv
 !data/processed/.gitkeep
+
+# Documentação (manter apenas Markdown)
+docs/*.pdf
 
 # OS
 .DS_Store
