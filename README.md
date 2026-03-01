@@ -113,6 +113,8 @@ python -m src.scraping.run_scrapers
 
 > ⚠️ **Importante**: Os arquivos CSV de dados processados **não são versionados** no repositório. Na primeira execução do projeto, você precisa executar os scrapers para gerar esses dados localmente.
 
+> 📖 Para documentação completa do módulo de scraping, consulte [SCRAPING.md](docs/SCRAPING.md)
+
 ## 💻 Como Executar
 
 ### Pipeline Completo
