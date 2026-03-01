@@ -1,119 +1,104 @@
 #!/usr/bin/env python3
 """
 Tech Challenge Fase 3 - Assistente Virtual Médico
+=================================================
 
-Script principal para execução do assistente médico.
-Integra fine-tuning de LLM com LangChain e LangGraph.
+Script principal que orquestra todo o pipeline:
+1. Preparação e anonimização de dados
+2. Fine-tuning do modelo LLM
+3. Avaliação do modelo
+4. Execução do assistente com LangChain
+
+Autor: Vagner Barbosa
+Data: Março 2026
 """
 
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Adiciona o diretório src ao path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from dotenv import load_dotenv
-import click
-
-from src.utils.logging_config import setup_logging, get_logger
-
 # Carrega variáveis de ambiente
 load_dotenv()
 
-# Configura logging
-logger = get_logger(__name__)
+# Imports dos módulos do projeto
+from src.utils.logging_config import setup_logging, get_logger
+from src.fine_tuning.data_preparation import DataPreparation
+from src.fine_tuning.training import ModelTrainer
+from src.fine_tuning.evaluation import ModelEvaluator
+from src.langchain_integration.assistant import MedicalAssistant
+from src.langgraph_flows.medical_workflow import MedicalWorkflow
 
 
-@click.group()
-@click.version_option(version="1.0.0")
-def cli():
-    """🏥 Assistente Virtual Médico - Tech Challenge Fase 3"""
-    pass
-
-
-@cli.command()
-@click.option("--data-path", default="./data/raw", help="Caminho dos dados brutos")
-def prepare_data(data_path: str):
-    """Prepara e anonimiza os dados para treinamento."""
-    logger.info(f"Preparando dados de: {data_path}")
-    from src.fine_tuning.data_preparation import DataPreparation
+def main():
+    """
+    Função principal que executa o pipeline completo.
+    """
+    # Configura logging
+    setup_logging()
+    logger = get_logger(__name__)
     
-    prep = DataPreparation(data_path)
-    prep.run()
-    logger.info("Dados preparados com sucesso!")
-
-
-@cli.command()
-@click.option("--model-name", default=None, help="Nome do modelo base")
-@click.option("--epochs", default=3, help="Número de épocas de treinamento")
-def train(model_name: str, epochs: int):
-    """Executa o fine-tuning do modelo."""
-    model = model_name or os.getenv("BASE_MODEL", "meta-llama/Llama-2-7b-hf")
-    logger.info(f"Iniciando treinamento com modelo: {model}")
+    logger.info("="*60)
+    logger.info("Tech Challenge Fase 3 - Assistente Virtual Médico")
+    logger.info("="*60)
     
-    from src.fine_tuning.training import ModelTrainer
-    
-    trainer = ModelTrainer(model_name=model, num_epochs=epochs)
-    trainer.train()
-    logger.info("Treinamento concluído!")
-
-
-@cli.command()
-def evaluate():
-    """Avalia o modelo treinado."""
-    logger.info("Avaliando modelo...")
-    from src.fine_tuning.evaluation import ModelEvaluator
-    
-    evaluator = ModelEvaluator()
-    metrics = evaluator.evaluate()
-    logger.info(f"Métricas: {metrics}")
-
-
-@cli.command()
-@click.option("--interactive", "-i", is_flag=True, help="Modo interativo")
-def chat(interactive: bool):
-    """Inicia o assistente médico."""
-    logger.info("Iniciando assistente médico...")
-    
-    from src.langchain_integration.assistant import MedicalAssistant
-    
-    assistant = MedicalAssistant()
-    
-    if interactive:
-        print("\n🏥 Assistente Virtual Médico")
-        print("=" * 40)
-        print("Digite 'sair' para encerrar.\n")
+    try:
+        # Etapa 1: Preparação de Dados
+        logger.info("\n📊 Etapa 1: Preparação e Anonimização de Dados")
+        data_prep = DataPreparation()
+        dataset = data_prep.prepare_dataset()
+        logger.info(f"Dataset preparado com {len(dataset)} registros")
+        
+        # Etapa 2: Fine-tuning do Modelo
+        logger.info("\n🔧 Etapa 2: Fine-tuning do Modelo LLM")
+        trainer = ModelTrainer()
+        model, tokenizer = trainer.train(dataset)
+        logger.info("Modelo treinado com sucesso!")
+        
+        # Etapa 3: Avaliação
+        logger.info("\n📈 Etapa 3: Avaliação do Modelo")
+        evaluator = ModelEvaluator(model, tokenizer)
+        metrics = evaluator.evaluate(dataset)
+        logger.info(f"Métricas de avaliação: {metrics}")
+        
+        # Etapa 4: Configuração do Assistente
+        logger.info("\n🤖 Etapa 4: Configuração do Assistente com LangChain")
+        assistant = MedicalAssistant(model, tokenizer)
+        
+        # Etapa 5: Workflow com LangGraph
+        logger.info("\n🔄 Etapa 5: Configuração do Workflow Médico")
+        workflow = MedicalWorkflow(assistant)
+        
+        # Modo interativo
+        logger.info("\n" + "="*60)
+        logger.info("Assistente pronto! Digite 'sair' para encerrar.")
+        logger.info("="*60 + "\n")
         
         while True:
-            try:
-                user_input = input("Você: ").strip()
-                if user_input.lower() in ["sair", "exit", "quit"]:
-                    print("\nAté logo! Cuide-se. 👋")
-                    break
-                
-                if user_input:
-                    response = assistant.respond(user_input)
-                    print(f"\nAssistente: {response}\n")
-            except KeyboardInterrupt:
-                print("\n\nEncerrando...")
+            user_input = input("\n👤 Você: ").strip()
+            
+            if user_input.lower() in ['sair', 'exit', 'quit']:
+                logger.info("Encerrando assistente...")
                 break
-    else:
-        # Modo não-interativo (para testes)
-        print("Assistente inicializado. Use --interactive para modo de chat.")
-
-
-@cli.command()
-def workflow():
-    """Executa o workflow médico com LangGraph."""
-    logger.info("Executando workflow médico...")
-    
-    from src.langgraph_flows.medical_workflow import MedicalWorkflow
-    
-    workflow = MedicalWorkflow()
-    workflow.run()
+            
+            if not user_input:
+                continue
+            
+            # Processa através do workflow
+            response = workflow.process(user_input)
+            print(f"\n🏥 Assistente: {response}")
+        
+        logger.info("Sessão encerrada com sucesso!")
+        
+    except KeyboardInterrupt:
+        logger.info("\nOperação interrompida pelo usuário.")
+    except Exception as e:
+        logger.error(f"Erro durante execução: {e}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":
-    setup_logging()
-    cli()
+    main()

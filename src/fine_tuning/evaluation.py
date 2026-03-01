@@ -1,18 +1,21 @@
 """
 Módulo de Avaliação do Modelo
+=============================
 
-Implementa métricas e avaliação do modelo fine-tuned.
+Responsável por:
+- Avaliar métricas do modelo treinado
+- Gerar relatórios de performance
+- Comparar com baseline
 """
 
-import json
+import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any, Optional
 
 import torch
-import pandas as pd
-from datasets import load_dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+import numpy as np
+from datasets import Dataset
+from transformers import pipeline
 
 from src.utils.logging_config import get_logger
 
@@ -20,136 +23,166 @@ logger = get_logger(__name__)
 
 
 class ModelEvaluator:
-    """Avaliador do modelo fine-tuned."""
+    """
+    Classe para avaliação de modelos de linguagem.
+    """
     
-    def __init__(
-        self,
-        model_path: str = "./models/assistente-medico-final",
-        test_data_path: str = "./data/processed/medical_dataset.json"
-    ):
-        self.model_path = Path(model_path)
-        self.test_data_path = Path(test_data_path)
-        self.model = None
-        self.tokenizer = None
+    def __init__(self, model: Any, tokenizer: Any):
+        """
+        Inicializa o avaliador.
         
-    def load_model(self):
-        """Carrega modelo treinado para avaliação."""
-        logger.info(f"Carregando modelo de: {self.model_path}")
+        Args:
+            model: Modelo treinado
+            tokenizer: Tokenizer do modelo
+        """
+        self.model = model
+        self.tokenizer = tokenizer
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        self.tokenizer = AutoTokenizer.from_pretrained(str(self.model_path))
-        self.model = AutoModelForCausalLM.from_pretrained(
-            str(self.model_path),
-            device_map="auto",
-            torch_dtype=torch.float16
+        # Configura pipeline de geração
+        self.generator = pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            device=0 if self.device == "cuda" else -1,
         )
-        self.model.eval()
         
-        logger.info("Modelo carregado para avaliação")
+        logger.info("ModelEvaluator inicializado")
     
     def generate_response(self, prompt: str, max_length: int = 256) -> str:
-        """Gera resposta do modelo para um prompt."""
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        """
+        Gera resposta para um prompt.
+        
+        Args:
+            prompt: Texto de entrada
+            max_length: Tamanho máximo da resposta
+            
+        Returns:
+            Resposta gerada
+        """
+        result = self.generator(
+            prompt,
+            max_length=max_length,
+            num_return_sequences=1,
+            temperature=0.7,
+            do_sample=True,
+            pad_token_id=self.tokenizer.eos_token_id,
+        )
+        
+        return result[0]['generated_text']
+    
+    def calculate_perplexity(self, texts: List[str]) -> float:
+        """
+        Calcula perplexidade média para uma lista de textos.
+        
+        Args:
+            texts: Lista de textos para avaliação
+            
+        Returns:
+            Perplexidade média
+        """
+        total_loss = 0
+        total_tokens = 0
+        
+        self.model.eval()
         
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=max_length,
-                temperature=0.7,
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
+            for text in texts:
+                encodings = self.tokenizer(
+                    text,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=512,
+                )
+                
+                input_ids = encodings.input_ids.to(self.device)
+                
+                outputs = self.model(input_ids, labels=input_ids)
+                total_loss += outputs.loss.item() * input_ids.size(1)
+                total_tokens += input_ids.size(1)
         
-        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove o prompt da resposta
-        return response[len(prompt):].strip()
+        avg_loss = total_loss / total_tokens
+        perplexity = np.exp(avg_loss)
+        
+        return perplexity
     
-    def calculate_metrics(self, predictions: List[str], references: List[str]) -> Dict[str, float]:
-        """Calcula métricas de avaliação."""
-        # Métricas simples (para uma avaliação completa, usar BLEU, ROUGE, etc.)
-        metrics = {
-            "num_samples": len(predictions),
-            "avg_response_length": sum(len(p) for p in predictions) / len(predictions),
-            "non_empty_responses": sum(1 for p in predictions if p.strip()) / len(predictions)
-        }
+    def evaluate_qa_quality(
+        self, 
+        questions: List[str], 
+        expected_answers: List[str]
+    ) -> Dict[str, float]:
+        """
+        Avalia qualidade das respostas de Q&A.
         
-        # TODO: Adicionar métricas mais sofisticadas
-        # - BLEU score
-        # - ROUGE score
-        # - Perplexity
-        # - Métricas específicas médicas
-        
-        return metrics
-    
-    def evaluate_on_dataset(self, num_samples: int = 50) -> Dict[str, Any]:
-        """Avalia modelo no dataset de teste."""
-        logger.info("Avaliando modelo no dataset...")
-        
-        # Carrega dados de teste
-        dataset = load_dataset("json", data_files=str(self.test_data_path), split="train")
-        
-        # Seleciona amostras
-        if len(dataset) > num_samples:
-            dataset = dataset.shuffle(seed=42).select(range(num_samples))
-        
-        predictions = []
-        references = []
-        results = []
-        
-        for example in dataset:
-            instruction = example.get("instruction", "")
-            context = example.get("input", "")
-            expected = example.get("output", "")
+        Args:
+            questions: Lista de perguntas
+            expected_answers: Lista de respostas esperadas
             
-            # Formata prompt
-            if context:
-                prompt = f"### Instrução:\n{instruction}\n\n### Contexto:\n{context}\n\n### Resposta:\n"
-            else:
-                prompt = f"### Instrução:\n{instruction}\n\n### Resposta:\n"
-            
-            # Gera resposta
-            response = self.generate_response(prompt)
-            
-            predictions.append(response)
-            references.append(expected)
-            
-            results.append({
-                "instruction": instruction,
-                "expected": expected,
-                "predicted": response
-            })
+        Returns:
+            Dicionário com métricas
+        """
+        from difflib import SequenceMatcher
         
-        # Calcula métricas
-        metrics = self.calculate_metrics(predictions, references)
+        similarities = []
+        
+        for question, expected in zip(questions, expected_answers):
+            prompt = f"### Instrução:\n{question}\n\n### Resposta:\n"
+            generated = self.generate_response(prompt)
+            
+            # Remove o prompt da resposta gerada
+            response = generated.replace(prompt, "").strip()
+            
+            # Calcula similaridade
+            similarity = SequenceMatcher(None, response.lower(), expected.lower()).ratio()
+            similarities.append(similarity)
         
         return {
-            "metrics": metrics,
-            "results": results
+            "mean_similarity": np.mean(similarities),
+            "std_similarity": np.std(similarities),
+            "min_similarity": np.min(similarities),
+            "max_similarity": np.max(similarities),
         }
     
-    def evaluate(self) -> Dict[str, Any]:
-        """Executa avaliação completa."""
-        logger.info("=" * 50)
-        logger.info("Iniciando Avaliação do Modelo")
-        logger.info("=" * 50)
+    def evaluate(self, dataset: Dataset) -> Dict[str, Any]:
+        """
+        Executa avaliação completa do modelo.
         
-        # Carrega modelo
-        self.load_model()
+        Args:
+            dataset: Dataset de avaliação
+            
+        Returns:
+            Dicionário com todas as métricas
+        """
+        logger.info("Iniciando avaliação do modelo...")
         
-        # Avalia
-        evaluation = self.evaluate_on_dataset()
+        metrics = {}
         
-        # Salva resultados
-        results_path = self.model_path.parent / "evaluation_results.json"
-        with open(results_path, 'w', encoding='utf-8') as f:
-            json.dump(evaluation, f, ensure_ascii=False, indent=2)
+        # Extrai textos do dataset
+        texts = dataset['text'][:50]  # Limita para avaliação rápida
         
-        logger.info(f"Resultados salvos em: {results_path}")
-        logger.info(f"Métricas: {evaluation['metrics']}")
+        # Calcula perplexidade
+        logger.info("Calculando perplexidade...")
+        metrics['perplexity'] = self.calculate_perplexity(texts)
+        logger.info(f"Perplexidade: {metrics['perplexity']:.2f}")
         
-        return evaluation["metrics"]
+        # Teste de geração
+        logger.info("Testando geração de respostas...")
+        test_prompts = [
+            "O que é diabetes?",
+            "Quais os sintomas de hipoglicemia?",
+            "Como controlar a glicemia?",
+        ]
+        
+        for prompt in test_prompts:
+            response = self.generate_response(f"### Instrução:\n{prompt}\n\n### Resposta:\n")
+            logger.info(f"\nPergunta: {prompt}")
+            logger.info(f"Resposta: {response[:200]}...")
+        
+        logger.info("\nAvaliação concluída!")
+        
+        return metrics
 
 
 if __name__ == "__main__":
-    evaluator = ModelEvaluator()
-    evaluator.evaluate()
+    # Este módulo requer modelo treinado para funcionar
+    logger.info("Execute este módulo através do main.py")

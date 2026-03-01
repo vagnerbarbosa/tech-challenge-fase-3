@@ -1,7 +1,7 @@
 """Módulo de Integração com LangChain."""
 
 from .assistant import MedicalAssistant
-from .chains import MedicalChain
+from .chains import MedicalChains
 from .tools import MedicalTools
 
-__all__ = ["MedicalAssistant", "MedicalChain", "MedicalTools"]
+__all__ = ["MedicalAssistant", "MedicalChains", "MedicalTools"]

@@ -1,289 +1,312 @@
 """
 Workflow Médico com LangGraph
+=============================
 
-Implementa fluxos automatizados para triagem e
-orientação médica usando LangGraph.
+Implementa fluxos automatizados para o assistente médico.
 """
 
-import os
-from typing import Dict, TypedDict, Annotated, List, Optional
+from typing import Any, Dict, TypedDict, Annotated, Sequence
 from enum import Enum
 
 from langgraph.graph import StateGraph, END
-from langchain.prompts import PromptTemplate
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 from src.utils.logging_config import get_logger
-from src.langchain_integration.chains import MedicalChain
+from src.langchain_integration.tools import MedicalTools
 
 logger = get_logger(__name__)
 
 
-class TriageLevel(str, Enum):
-    """Níveis de triagem médica."""
-    EMERGENCY = "emergency"      # Vermelho - Emergência
-    URGENT = "urgent"            # Laranja - Muito urgente
-    LESS_URGENT = "less_urgent"  # Amarelo - Urgente
-    NOT_URGENT = "not_urgent"    # Verde - Pouco urgente
-    NON_URGENT = "non_urgent"    # Azul - Não urgente
+class MessageType(str, Enum):
+    """Tipos de mensagem no workflow."""
+    GREETING = "greeting"
+    QUESTION = "question"
+    EMERGENCY = "emergency"
+    GLYCEMIA = "glycemia"
+    GENERAL = "general"
+    FAREWELL = "farewell"
 
 
-class PatientState(TypedDict):
-    """Estado do paciente no workflow."""
-    patient_id: str
-    symptoms: str
-    symptom_duration: Optional[str]
-    pain_level: Optional[int]
-    vital_signs: Optional[Dict[str, float]]
-    triage_level: Optional[TriageLevel]
-    recommendations: List[str]
-    medical_history: Optional[str]
-    requires_emergency: bool
+class WorkflowState(TypedDict):
+    """Estado do workflow."""
+    messages: Sequence[BaseMessage]
+    message_type: str
+    user_input: str
     response: str
+    glycemia_value: float
+    requires_followup: bool
 
 
 class MedicalWorkflow:
-    """Workflow de triagem médica com LangGraph."""
+    """
+    Workflow médico usando LangGraph.
+    """
     
-    def __init__(self):
-        self.medical_chain = MedicalChain()
+    def __init__(self, assistant: Any = None):
+        """
+        Inicializa o workflow.
+        
+        Args:
+            assistant: Instância do MedicalAssistant
+        """
+        self.assistant = assistant
+        self.tools = MedicalTools()
         self.graph = self._build_graph()
         
-        logger.info("Workflow médico inicializado")
+        logger.info("MedicalWorkflow inicializado")
     
     def _build_graph(self) -> StateGraph:
-        """Constrói o grafo de workflow."""
+        """
+        Constrói o grafo de workflow.
+        
+        Returns:
+            StateGraph configurado
+        """
         # Cria o grafo
-        workflow = StateGraph(PatientState)
+        workflow = StateGraph(WorkflowState)
         
         # Adiciona nós
-        workflow.add_node("collect_symptoms", self._collect_symptoms)
-        workflow.add_node("check_emergency", self._check_emergency)
-        workflow.add_node("classify_triage", self._classify_triage)
-        workflow.add_node("generate_recommendations", self._generate_recommendations)
-        workflow.add_node("emergency_response", self._emergency_response)
-        workflow.add_node("final_response", self._final_response)
+        workflow.add_node("classify", self._classify_message)
+        workflow.add_node("handle_greeting", self._handle_greeting)
+        workflow.add_node("handle_emergency", self._handle_emergency)
+        workflow.add_node("handle_glycemia", self._handle_glycemia)
+        workflow.add_node("handle_question", self._handle_question)
+        workflow.add_node("handle_farewell", self._handle_farewell)
+        workflow.add_node("generate_response", self._generate_response)
         
-        # Define ponto de entrada
-        workflow.set_entry_point("collect_symptoms")
+        # Define entrada
+        workflow.set_entry_point("classify")
         
-        # Adiciona arestas
-        workflow.add_edge("collect_symptoms", "check_emergency")
-        
-        # Condicional: emergência ou triagem normal
+        # Adiciona arestas condicionais
         workflow.add_conditional_edges(
-            "check_emergency",
-            self._route_after_emergency_check,
+            "classify",
+            self._route_message,
             {
-                "emergency": "emergency_response",
-                "continue": "classify_triage"
+                MessageType.GREETING: "handle_greeting",
+                MessageType.EMERGENCY: "handle_emergency",
+                MessageType.GLYCEMIA: "handle_glycemia",
+                MessageType.QUESTION: "handle_question",
+                MessageType.FAREWELL: "handle_farewell",
+                MessageType.GENERAL: "handle_question",
             }
         )
         
-        workflow.add_edge("classify_triage", "generate_recommendations")
-        workflow.add_edge("generate_recommendations", "final_response")
-        workflow.add_edge("emergency_response", END)
-        workflow.add_edge("final_response", END)
+        # Conecta handlers ao gerador de resposta
+        for node in ["handle_greeting", "handle_emergency", "handle_glycemia", 
+                     "handle_question", "handle_farewell"]:
+            workflow.add_edge(node, "generate_response")
+        
+        # Finaliza
+        workflow.add_edge("generate_response", END)
         
         return workflow.compile()
     
-    def _collect_symptoms(self, state: PatientState) -> PatientState:
-        """Coleta e processa sintomas."""
-        logger.info("Coletando sintomas do paciente")
+    def _classify_message(self, state: WorkflowState) -> WorkflowState:
+        """
+        Classifica o tipo de mensagem.
         
-        # Processa sintomas com o LLM
-        symptoms = state.get("symptoms", "")
+        Args:
+            state: Estado atual
+            
+        Returns:
+            Estado atualizado
+        """
+        user_input = state["user_input"].lower()
         
-        # Aqui poderia usar NER para extrair sintomas estruturados
-        # Por enquanto, apenas passa os sintomas adiante
+        # Verifica tipo de mensagem
+        if any(word in user_input for word in ["olá", "oi", "bom dia", "boa tarde", "boa noite"]):
+            state["message_type"] = MessageType.GREETING
+        elif any(word in user_input for word in ["tchau", "adeus", "até logo", "obrigado"]):
+            state["message_type"] = MessageType.FAREWELL
+        elif self.tools.is_emergency_question(user_input):
+            state["message_type"] = MessageType.EMERGENCY
+        elif self.tools.extract_glycemia_value(user_input) is not None:
+            state["message_type"] = MessageType.GLYCEMIA
+            state["glycemia_value"] = self.tools.extract_glycemia_value(user_input)
+        else:
+            state["message_type"] = MessageType.QUESTION
         
-        return {
-            **state,
-            "symptoms": symptoms,
-            "recommendations": []
-        }
+        logger.debug(f"Mensagem classificada como: {state['message_type']}")
+        
+        return state
     
-    def _check_emergency(self, state: PatientState) -> PatientState:
-        """Verifica se é emergência."""
-        logger.info("Verificando sinais de emergência")
+    def _route_message(self, state: WorkflowState) -> MessageType:
+        """
+        Roteia a mensagem para o handler apropriado.
         
-        emergency_keywords = [
-            "não consigo respirar", "dor no peito forte", "desmaio",
-            "perda de consciência", "convulsão", "sangramento intenso",
-            "acidente grave", "overdose", "envenenamento"
+        Args:
+            state: Estado atual
+            
+        Returns:
+            Tipo de mensagem para roteamento
+        """
+        return state["message_type"]
+    
+    def _handle_greeting(self, state: WorkflowState) -> WorkflowState:
+        """
+        Trata saudações.
+        """
+        state["response"] = """Olá! 👋 Sou seu assistente virtual médico especializado em diabetes.
+
+Posso ajudá-lo com:
+• Informações sobre diabetes tipo 1 e tipo 2
+• Dúvidas sobre sintomas e prevenção
+• Orientações sobre alimentação e estilo de vida
+• Interpretação de valores de glicemia
+
+Como posso ajudá-lo hoje?
+
+⚠️ Lembre-se: não substituo uma consulta médica profissional."""
+        
+        return state
+    
+    def _handle_emergency(self, state: WorkflowState) -> WorkflowState:
+        """
+        Trata emergências.
+        """
+        state["response"] = """🚨 ALERTA DE EMERGÊNCIA
+
+Identifiquei que sua mensagem pode indicar uma situação urgente.
+
+AÇÕES IMEDIATAS:
+1. 📞 Ligue 192 (SAMU) ou 193 (Bombeiros)
+2. 🏥 Vá ao pronto-socorro mais próximo
+3. ❌ NÃO dirija se estiver se sentindo mal
+
+Sintomas que requerem atendimento imediato:
+• Confusão mental ou desmaio
+• Glicemia < 54 mg/dL ou > 400 mg/dL
+• Dificuldade respiratória
+• Vômitos persistentes
+
+Este assistente NÃO substitui atendimento de emergência!"""
+        
+        return state
+    
+    def _handle_glycemia(self, state: WorkflowState) -> WorkflowState:
+        """
+        Trata valores de glicemia.
+        """
+        value = state.get("glycemia_value", 0)
+        result = self.tools.interpret_glycemia(value)
+        
+        alert_emoji = {
+            "normal": "✅",
+            "warning": "⚠️",
+            "high": "🔴",
+            "critical": "🚨",
+        }
+        
+        emoji = alert_emoji.get(result["alert_level"], "ℹ️")
+        
+        state["response"] = f"""📊 ANÁLISE DE GLICEMIA
+
+Valor informado: {value} mg/dL
+
+{emoji} Classificação: {result['classification']}
+
+💡 Recomendação: {result['recommendation']}
+
+📌 Valores de referência (jejum):
+• Normal: 70-99 mg/dL
+• Pré-diabetes: 100-125 mg/dL
+• Indicativo de diabetes: ≥126 mg/dL
+
+⚠️ Esta análise é apenas informativa.
+Consulte seu médico para avaliação completa."""
+        
+        return state
+    
+    def _handle_question(self, state: WorkflowState) -> WorkflowState:
+        """
+        Trata perguntas gerais.
+        """
+        if self.assistant:
+            state["response"] = self.assistant.process_message(state["user_input"])
+        else:
+            state["response"] = f"""Obrigado pela sua pergunta!
+
+Você perguntou: "{state['user_input']}"
+
+Como assistente virtual médico especializado em diabetes, posso fornecer informações educativas sobre a condição.
+
+Para uma resposta mais completa e personalizada, recomendo:
+1. Consultar um médico endocrinologista
+2. Levar suas dúvidas anotadas para a consulta
+3. Compartilhar seus exames recentes com o profissional
+
+Posso ajudar com mais alguma dúvida?"""
+        
+        return state
+    
+    def _handle_farewell(self, state: WorkflowState) -> WorkflowState:
+        """
+        Trata despedidas.
+        """
+        state["response"] = """Obrigado por conversar comigo! 👋
+
+Lembre-se:
+✅ Mantenha suas consultas médicas em dia
+✅ Monitore sua glicemia regularmente
+✅ Siga uma alimentação equilibrada
+✅ Pratique exercícios físicos
+
+Cuide-se bem! Estarei aqui sempre que precisar. 💙"""
+        
+        return state
+    
+    def _generate_response(self, state: WorkflowState) -> WorkflowState:
+        """
+        Gera a resposta final.
+        """
+        # Adiciona mensagem ao histórico
+        state["messages"] = list(state.get("messages", [])) + [
+            HumanMessage(content=state["user_input"]),
+            AIMessage(content=state["response"]),
         ]
         
-        symptoms_lower = state.get("symptoms", "").lower()
-        is_emergency = any(kw in symptoms_lower for kw in emergency_keywords)
-        
-        # Verifica nível de dor
-        pain_level = state.get("pain_level", 0)
-        if pain_level and pain_level >= 9:
-            is_emergency = True
-        
-        return {
-            **state,
-            "requires_emergency": is_emergency
-        }
+        return state
     
-    def _route_after_emergency_check(self, state: PatientState) -> str:
-        """Decide a rota após verificação de emergência."""
-        if state.get("requires_emergency", False):
-            return "emergency"
-        return "continue"
-    
-    def _classify_triage(self, state: PatientState) -> PatientState:
-        """Classifica nível de triagem."""
-        logger.info("Classificando nível de triagem")
-        
-        pain_level = state.get("pain_level", 0) or 0
-        duration = state.get("symptom_duration", "")
-        
-        # Lógica simplificada de triagem
-        if pain_level >= 7:
-            triage = TriageLevel.URGENT
-        elif pain_level >= 5 or "dias" not in duration.lower():
-            triage = TriageLevel.LESS_URGENT
-        elif pain_level >= 3:
-            triage = TriageLevel.NOT_URGENT
-        else:
-            triage = TriageLevel.NON_URGENT
-        
-        return {
-            **state,
-            "triage_level": triage
-        }
-    
-    def _generate_recommendations(self, state: PatientState) -> PatientState:
-        """Gera recomendações baseadas na triagem."""
-        logger.info("Gerando recomendações")
-        
-        triage = state.get("triage_level", TriageLevel.NON_URGENT)
-        recommendations = []
-        
-        triage_recommendations = {
-            TriageLevel.URGENT: [
-                "Procure um pronto-socorro em até 1 hora",
-                "Não dirija sozinho se estiver com muita dor",
-                "Leve documentos e lista de medicamentos em uso"
-            ],
-            TriageLevel.LESS_URGENT: [
-                "Agende uma consulta médica para hoje ou amanhã",
-                "Monitore seus sintomas e anote mudanças",
-                "Se os sintomas piorarem, procure atendimento imediato"
-            ],
-            TriageLevel.NOT_URGENT: [
-                "Agende uma consulta médica nos próximos dias",
-                "Mantenha repouso e hidratação adequada",
-                "Observe a evolução dos sintomas"
-            ],
-            TriageLevel.NON_URGENT: [
-                "Você pode agendar uma consulta de rotina",
-                "Mantenha hábitos saudáveis de vida",
-                "Se novos sintomas surgirem, reavalie"
-            ]
-        }
-        
-        recommendations = triage_recommendations.get(triage, [])
-        
-        return {
-            **state,
-            "recommendations": recommendations
-        }
-    
-    def _emergency_response(self, state: PatientState) -> PatientState:
-        """Gera resposta de emergência."""
-        logger.warning("EMERGÊNCIA DETECTADA - Gerando resposta urgente")
-        
-        response = """🚨 ATENÇÃO - POSSÍVEL EMERGÊNCIA MÉDICA!
-        
-        Baseado nos sintomas descritos, recomendamos:
-        
-        1. LIGUE IMEDIATAMENTE PARA O SAMU: 192
-        2. Ou vá ao pronto-socorro mais próximo
-        3. Se possível, peça para alguém te acompanhar
-        4. Não dirija se estiver com sintomas graves
-        
-        Em caso de dúvida, é sempre melhor buscar atendimento.
-        Sua saúde é prioridade!"""
-        
-        return {
-            **state,
-            "triage_level": TriageLevel.EMERGENCY,
-            "response": response
-        }
-    
-    def _final_response(self, state: PatientState) -> PatientState:
-        """Gera resposta final com recomendações."""
-        logger.info("Gerando resposta final")
-        
-        triage = state.get("triage_level", TriageLevel.NON_URGENT)
-        recommendations = state.get("recommendations", [])
-        
-        triage_labels = {
-            TriageLevel.EMERGENCY: "🔴 Emergência",
-            TriageLevel.URGENT: "🟠 Urgente",
-            TriageLevel.LESS_URGENT: "🟡 Menos Urgente",
-            TriageLevel.NOT_URGENT: "🟢 Pouco Urgente",
-            TriageLevel.NON_URGENT: "🔵 Não Urgente"
-        }
-        
-        response = f"""📋 Resultado da Triagem Virtual
-        
-        Classificação: {triage_labels.get(triage, 'N/A')}
-        
-        Recomendações:
+    def process(self, user_input: str) -> str:
         """
+        Processa uma mensagem através do workflow.
         
-        for i, rec in enumerate(recommendations, 1):
-            response += f"\n        {i}. {rec}"
-        
-        response += """\n        
-        ⚠️ Lembre-se: Esta é uma orientação inicial automatizada.
-        Ela não substitui a avaliação de um profissional de saúde.
-        Em caso de dúvida, sempre procure atendimento médico."""
-        
-        return {
-            **state,
-            "response": response
-        }
-    
-    def run(self, patient_data: Optional[Dict] = None) -> Dict:
-        """Executa o workflow completo."""
-        logger.info("Executando workflow médico")
-        
-        # Estado inicial
-        initial_state: PatientState = {
-            "patient_id": patient_data.get("patient_id", "anonymous") if patient_data else "anonymous",
-            "symptoms": patient_data.get("symptoms", "") if patient_data else "",
-            "symptom_duration": patient_data.get("duration") if patient_data else None,
-            "pain_level": patient_data.get("pain_level") if patient_data else None,
-            "vital_signs": patient_data.get("vital_signs") if patient_data else None,
-            "triage_level": None,
-            "recommendations": [],
-            "medical_history": patient_data.get("history") if patient_data else None,
-            "requires_emergency": False,
-            "response": ""
+        Args:
+            user_input: Mensagem do usuário
+            
+        Returns:
+            Resposta do assistente
+        """
+        initial_state: WorkflowState = {
+            "messages": [],
+            "message_type": MessageType.GENERAL,
+            "user_input": user_input,
+            "response": "",
+            "glycemia_value": 0.0,
+            "requires_followup": False,
         }
         
-        # Executa o grafo
-        final_state = self.graph.invoke(initial_state)
-        
-        logger.info(f"Workflow concluído - Triagem: {final_state.get('triage_level')}")
-        
-        return final_state
+        try:
+            result = self.graph.invoke(initial_state)
+            return result["response"]
+        except Exception as e:
+            logger.error(f"Erro no workflow: {e}")
+            return "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
 
 
 if __name__ == "__main__":
     # Teste do workflow
     workflow = MedicalWorkflow()
     
-    # Caso de teste
-    patient = {
-        "patient_id": "test123",
-        "symptoms": "Dor de cabeça forte há 2 dias, com náusea",
-        "duration": "2 dias",
-        "pain_level": 6
-    }
+    test_messages = [
+        "Olá!",
+        "O que é diabetes?",
+        "Minha glicemia está em 180 mg/dL",
+        "Estou me sentindo muito confuso",
+        "Tchau!",
+    ]
     
-    result = workflow.run(patient)
-    print(result["response"])
+    for msg in test_messages:
+        print(f"\n👤 Usuário: {msg}")
+        response = workflow.process(msg)
+        print(f"🏥 Assistente: {response}")

@@ -1,174 +1,211 @@
 """
 Módulo de Preparação e Anonimização de Dados
+============================================
 
 Responsável por:
-- Carregar dados médicos brutos
+- Carregar dados médicos
 - Anonimizar informações sensíveis (LGPD)
 - Preparar dataset para fine-tuning
 """
 
 import os
 import re
-import json
-from pathlib import Path
-from typing import Dict, List, Optional
-
 import pandas as pd
-from faker import Faker
-from datasets import Dataset
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+from datasets import Dataset, DatasetDict
 
 from src.utils.logging_config import get_logger
+from src.utils.validators import DataValidator
 
 logger = get_logger(__name__)
 
 
-class DataAnonymizer:
-    """Anonimizador de dados médicos sensíveis."""
+class DataPreparation:
+    """
+    Classe para preparação e anonimização de dados médicos.
+    """
     
-    def __init__(self, locale: str = "pt_BR"):
-        self.fake = Faker(locale)
-        self._name_map: Dict[str, str] = {}
-        self._cpf_map: Dict[str, str] = {}
+    def __init__(self, data_path: Optional[str] = None):
+        """
+        Inicializa o preparador de dados.
         
-    def anonymize_name(self, name: str) -> str:
-        """Substitui nome por nome fictício."""
-        if name not in self._name_map:
-            self._name_map[name] = self.fake.name()
-        return self._name_map[name]
-    
-    def anonymize_cpf(self, cpf: str) -> str:
-        """Substitui CPF por CPF fictício."""
-        if cpf not in self._cpf_map:
-            self._cpf_map[cpf] = self.fake.cpf()
-        return self._cpf_map[cpf]
+        Args:
+            data_path: Caminho para os dados. Se None, usa DATA_PATH do .env
+        """
+        self.data_path = Path(data_path or os.getenv("DATA_PATH", "./data"))
+        self.raw_path = self.data_path / "raw"
+        self.processed_path = self.data_path / "processed"
+        self.validator = DataValidator()
+        
+        # Garante que os diretórios existam
+        self.raw_path.mkdir(parents=True, exist_ok=True)
+        self.processed_path.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"DataPreparation inicializado. Data path: {self.data_path}")
     
     def anonymize_text(self, text: str) -> str:
-        """Anonimiza texto completo."""
-        # Padrões para identificar informações sensíveis
+        """
+        Anonimiza informações sensíveis no texto.
+        
+        Args:
+            text: Texto a ser anonimizado
+            
+        Returns:
+            Texto anonimizado
+        """
+        if not text:
+            return text
+        
+        # Padrões para anonimização
         patterns = {
-            r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b': self._replace_cpf,  # CPF
-            r'\b\d{2}/\d{2}/\d{4}\b': self._replace_date,  # Datas
-            r'\b[A-Z][a-z]+ [A-Z][a-z]+\b': self._replace_name,  # Nomes
+            # CPF: XXX.XXX.XXX-XX
+            r'\d{3}\.\d{3}\.\d{3}-\d{2}': '[CPF_ANONIMIZADO]',
+            # RG: XX.XXX.XXX-X
+            r'\d{2}\.\d{3}\.\d{3}-[0-9X]': '[RG_ANONIMIZADO]',
+            # Telefone: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+            r'\(\d{2}\)\s*\d{4,5}-?\d{4}': '[TELEFONE_ANONIMIZADO]',
+            # Email
+            r'[\w\.-]+@[\w\.-]+\.\w+': '[EMAIL_ANONIMIZADO]',
+            # Nomes próprios (simplificado - em produção usar NER)
+            r'\b[A-Z][a-záéíóúàèìòùâêîôûãõ]+\s+[A-Z][a-záéíóúàèìòùâêîôûãõ]+\b': '[NOME_ANONIMIZADO]',
+            # Datas de nascimento
+            r'\d{2}/\d{2}/\d{4}': '[DATA_ANONIMIZADA]',
+            # Endereços (simplificado)
+            r'Rua\s+[\w\s]+,\s*\d+': '[ENDERECO_ANONIMIZADO]',
         }
         
-        result = text
-        for pattern, replacer in patterns.items():
-            result = re.sub(pattern, replacer, result)
+        anonymized = text
+        for pattern, replacement in patterns.items():
+            anonymized = re.sub(pattern, replacement, anonymized)
         
-        return result
+        return anonymized
     
-    def _replace_cpf(self, match) -> str:
-        return self.anonymize_cpf(match.group())
+    def load_raw_data(self, filename: str = "diabetes.csv") -> pd.DataFrame:
+        """
+        Carrega dados brutos do arquivo.
+        
+        Args:
+            filename: Nome do arquivo de dados
+            
+        Returns:
+            DataFrame com os dados carregados
+        """
+        file_path = self.raw_path / filename
+        
+        if not file_path.exists():
+            logger.warning(f"Arquivo não encontrado: {file_path}")
+            logger.info("Criando dataset de exemplo...")
+            return self._create_sample_dataset()
+        
+        logger.info(f"Carregando dados de: {file_path}")
+        df = pd.read_csv(file_path)
+        logger.info(f"Dados carregados: {len(df)} registros, {len(df.columns)} colunas")
+        
+        return df
     
-    def _replace_date(self, match) -> str:
-        return self.fake.date()
-    
-    def _replace_name(self, match) -> str:
-        return self.anonymize_name(match.group())
-
-
-class DataPreparation:
-    """Pipeline de preparação de dados para fine-tuning."""
-    
-    def __init__(self, data_path: str = "./data/raw"):
-        self.data_path = Path(data_path)
-        self.output_path = Path("./data/processed")
-        self.anonymizer = DataAnonymizer()
+    def _create_sample_dataset(self) -> pd.DataFrame:
+        """
+        Cria um dataset de exemplo para demonstração.
         
-        # Cria diretório de saída se não existir
-        self.output_path.mkdir(parents=True, exist_ok=True)
+        Returns:
+            DataFrame com dados de exemplo
+        """
+        # Exemplos de perguntas e respostas médicas
+        samples = [
+            {
+                "instruction": "O que é diabetes tipo 2?",
+                "input": "",
+                "output": "Diabetes tipo 2 é uma condição crônica que afeta a forma como o corpo metaboliza a glicose. Ocorre quando o corpo desenvolve resistência à insulina ou não produz insulina suficiente. Os fatores de risco incluem obesidade, sedentarismo e histórico familiar."
+            },
+            {
+                "instruction": "Quais são os sintomas da diabetes?",
+                "input": "",
+                "output": "Os principais sintomas da diabetes incluem: sede excessiva (polidipsia), urinação frequente (poliúria), fome excessiva (polifagia), perda de peso inexplicada, fadiga, visão turva, cicatrização lenta de feridas e formigamento nas extremidades."
+            },
+            {
+                "instruction": "Como controlar a glicemia?",
+                "input": "Paciente com diabetes tipo 2 recém-diagnosticado",
+                "output": "Para controlar a glicemia, recomenda-se: 1) Alimentação equilibrada com baixo índice glicêmico; 2) Exercícios físicos regulares (30 min/dia); 3) Monitoramento regular da glicose; 4) Medicação conforme prescrição médica; 5) Controle do peso; 6) Evitar álcool e tabaco."
+            },
+            {
+                "instruction": "Qual a diferença entre diabetes tipo 1 e tipo 2?",
+                "input": "",
+                "output": "Diabetes tipo 1 é uma doença autoimune onde o sistema imunológico ataca as células beta do pâncreas, geralmente diagnosticada na infância/adolescência. Diabetes tipo 2 é caracterizada por resistência à insulina, mais comum em adultos e associada ao estilo de vida."
+            },
+            {
+                "instruction": "O que é hipoglicemia?",
+                "input": "",
+                "output": "Hipoglicemia é quando os níveis de açúcar no sangue ficam muito baixos (abaixo de 70 mg/dL). Sintomas incluem tremores, sudorese, confusão mental, tontura e fome intensa. Tratamento imediato: consumir 15g de carboidrato de ação rápida."
+            },
+        ]
         
-    def load_raw_data(self) -> pd.DataFrame:
-        """Carrega dados brutos de diferentes formatos."""
-        logger.info(f"Carregando dados de {self.data_path}")
+        df = pd.DataFrame(samples)
         
-        all_data = []
+        # Salva o dataset de exemplo
+        sample_path = self.processed_path / "sample_medical_qa.csv"
+        df.to_csv(sample_path, index=False)
+        logger.info(f"Dataset de exemplo salvo em: {sample_path}")
         
-        # Procura por arquivos CSV
-        for csv_file in self.data_path.glob("*.csv"):
-            logger.info(f"Lendo {csv_file.name}")
-            df = pd.read_csv(csv_file)
-            all_data.append(df)
-        
-        # Procura por arquivos JSON
-        for json_file in self.data_path.glob("*.json"):
-            logger.info(f"Lendo {json_file.name}")
-            with open(json_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            df = pd.DataFrame(data)
-            all_data.append(df)
-        
-        if not all_data:
-            logger.warning("Nenhum dado encontrado!")
-            return pd.DataFrame()
-        
-        return pd.concat(all_data, ignore_index=True)
-    
-    def anonymize_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Aplica anonimização em todas as colunas de texto."""
-        logger.info("Anonimizando dados sensíveis...")
-        
-        text_columns = df.select_dtypes(include=['object']).columns
-        
-        for col in text_columns:
-            df[col] = df[col].apply(
-                lambda x: self.anonymizer.anonymize_text(str(x)) if pd.notna(x) else x
-            )
-        
-        logger.info(f"Anonimização concluída para {len(text_columns)} colunas")
         return df
     
     def prepare_for_training(self, df: pd.DataFrame) -> Dataset:
-        """Converte dados para formato de treinamento."""
-        logger.info("Preparando dataset para fine-tuning...")
+        """
+        Prepara os dados para o formato de treinamento.
         
-        # Formato esperado: prompt/response ou instruction/output
-        training_data = []
+        Args:
+            df: DataFrame com os dados
+            
+        Returns:
+            Dataset do Hugging Face pronto para treinamento
+        """
+        # Formata as instruções no formato de chat
+        def format_instruction(row):
+            if row.get('input', ''):
+                text = f"### Instrução:\n{row['instruction']}\n\n### Contexto:\n{row['input']}\n\n### Resposta:\n{row['output']}"
+            else:
+                text = f"### Instrução:\n{row['instruction']}\n\n### Resposta:\n{row['output']}"
+            return text
         
-        # TODO: Adaptar conforme estrutura real dos dados
-        for _, row in df.iterrows():
-            training_data.append({
-                "instruction": row.get("pergunta", row.get("instruction", "")),
-                "input": row.get("contexto", row.get("input", "")),
-                "output": row.get("resposta", row.get("output", ""))
-            })
+        df['text'] = df.apply(format_instruction, axis=1)
         
-        dataset = Dataset.from_list(training_data)
-        logger.info(f"Dataset criado com {len(dataset)} exemplos")
+        # Anonimiza os textos
+        df['text'] = df['text'].apply(self.anonymize_text)
+        
+        # Converte para Dataset
+        dataset = Dataset.from_pandas(df[['text']])
+        
+        logger.info(f"Dataset preparado para treinamento: {len(dataset)} exemplos")
+        
         return dataset
     
-    def save_processed_data(self, dataset: Dataset, name: str = "medical_dataset"):
-        """Salva dataset processado."""
-        output_file = self.output_path / f"{name}.json"
+    def prepare_dataset(self) -> Dataset:
+        """
+        Pipeline completo de preparação de dados.
         
-        dataset.to_json(str(output_file))
-        logger.info(f"Dataset salvo em {output_file}")
-    
-    def run(self):
-        """Executa pipeline completo de preparação."""
-        logger.info("=" * 50)
-        logger.info("Iniciando preparação de dados")
-        logger.info("=" * 50)
+        Returns:
+            Dataset pronto para fine-tuning
+        """
+        logger.info("Iniciando preparação do dataset...")
         
-        # 1. Carregar dados
+        # Carrega dados
         df = self.load_raw_data()
-        if df.empty:
-            logger.error("Nenhum dado para processar!")
-            return
         
-        # 2. Anonimizar
-        df_anon = self.anonymize_data(df)
+        # Valida dados
+        if not self.validator.validate_dataframe(df):
+            logger.warning("Validação falhou, usando dataset de exemplo")
+            df = self._create_sample_dataset()
         
-        # 3. Preparar para treinamento
-        dataset = self.prepare_for_training(df_anon)
+        # Prepara para treinamento
+        dataset = self.prepare_for_training(df)
         
-        # 4. Salvar
-        self.save_processed_data(dataset)
+        logger.info("Preparação do dataset concluída!")
         
-        logger.info("Pipeline de preparação concluído!")
         return dataset
 
 
 if __name__ == "__main__":
+    # Teste do módulo
     prep = DataPreparation()
-    prep.run()
+    dataset = prep.prepare_dataset()
+    print(f"\nExemplo de dado preparado:\n{dataset[0]['text'][:500]}...")

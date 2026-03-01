@@ -1,155 +1,182 @@
 """
-Ferramentas Customizadas para o Assistente Médico
+Ferramentas Customizadas do LangChain
+=====================================
 
-Implementa tools do LangChain para funcionalidades específicas.
+Implementa ferramentas auxiliares para o assistente médico.
 """
 
-from typing import Optional, Type, Dict, Any
-
-from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+import re
+from typing import List, Dict, Any
 
 from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
-class SymptomCheckerInput(BaseModel):
-    """Input para checagem de sintomas."""
-    symptoms: str = Field(description="Lista de sintomas separados por vírgula")
-
-
-class SymptomCheckerTool(BaseTool):
-    """Ferramenta para análise inicial de sintomas."""
-    
-    name: str = "symptom_checker"
-    description: str = """Útil para quando o usuário descreve sintomas e quer entender 
-    possíveis condições associadas. NÃO fornece diagnósticos, apenas informações educacionais."""
-    args_schema: Type[BaseModel] = SymptomCheckerInput
-    
-    def _run(self, symptoms: str) -> str:
-        """Executa análise de sintomas."""
-        logger.info(f"Analisando sintomas: {symptoms}")
-        
-        # TODO: Integrar com base de conhecimento médico
-        # Por enquanto, retorna orientação genérica
-        
-        return f"""Você mencionou os seguintes sintomas: {symptoms}
-        
-        É importante que você consulte um profissional de saúde para uma avaliação adequada.
-        Esses sintomas podem estar relacionados a diversas condições e apenas um médico 
-        pode fazer um diagnóstico correto após exame clínico.
-        
-        Recomendações:
-        - Anote quando os sintomas começaram
-        - Observe se há fatores que melhoram ou pioram
-        - Procure atendimento médico em breve"""
-    
-    async def _arun(self, symptoms: str) -> str:
-        """Versão assíncrona."""
-        return self._run(symptoms)
-
-
-class MedicationInfoInput(BaseModel):
-    """Input para informações de medicamentos."""
-    medication_name: str = Field(description="Nome do medicamento")
-
-
-class MedicationInfoTool(BaseTool):
-    """Ferramenta para informações sobre medicamentos."""
-    
-    name: str = "medication_info"
-    description: str = """Fornece informações gerais sobre medicamentos. 
-    NÃO prescreve ou recomenda doses."""
-    args_schema: Type[BaseModel] = MedicationInfoInput
-    
-    def _run(self, medication_name: str) -> str:
-        """Busca informações do medicamento."""
-        logger.info(f"Buscando info de: {medication_name}")
-        
-        # TODO: Integrar com base de dados de medicamentos (ex: ANVISA)
-        
-        return f"""Informações sobre {medication_name}:
-        
-        ⚠️ IMPORTANTE: Estas são informações gerais para fins educacionais.
-        Sempre siga a prescrição do seu médico.
-        
-        Para informações detalhadas sobre indicações, contraindicações e posologia,
-        consulte a bula do medicamento ou um profissional de saúde."""
-    
-    async def _arun(self, medication_name: str) -> str:
-        return self._run(medication_name)
-
-
-class EmergencyCheckInput(BaseModel):
-    """Input para verificação de emergência."""
-    situation: str = Field(description="Descrição da situação")
-
-
-class EmergencyCheckTool(BaseTool):
-    """Ferramenta para identificar emergências médicas."""
-    
-    name: str = "emergency_check"
-    description: str = "Verifica se uma situação requer atendimento de emergência."
-    args_schema: Type[BaseModel] = EmergencyCheckInput
-    
-    EMERGENCY_KEYWORDS = [
-        "infarto", "avc", "derrame", "não respira", "inconsciente",
-        "convulsão", "sangramento", "engasgo", "overdose", "envenenamento"
-    ]
-    
-    def _run(self, situation: str) -> str:
-        """Verifica emergência."""
-        logger.info(f"Verificando emergência: {situation}")
-        
-        situation_lower = situation.lower()
-        is_emergency = any(kw in situation_lower for kw in self.EMERGENCY_KEYWORDS)
-        
-        if is_emergency:
-            return """🚨 EMERGÊNCIA IDENTIFICADA!
-            
-            LIGUE IMEDIATAMENTE:
-            - SAMU: 192
-            - Bombeiros: 193
-            - Polícia: 190
-            
-            Ou dirija-se ao pronto-socorro mais próximo.
-            Cada segundo conta em uma emergência!"""
-        
-        return """Esta situação não foi identificada como emergência imediata.
-        No entanto, se você sentir que precisa de ajuda urgente, 
-        não hesite em ligar para o SAMU (192) ou ir ao pronto-socorro."""
-    
-    async def _arun(self, situation: str) -> str:
-        return self._run(situation)
-
-
 class MedicalTools:
-    """Coleção de ferramentas médicas."""
+    """
+    Ferramentas auxiliares para o assistente médico.
+    """
     
     def __init__(self):
-        self.tools = [
-            SymptomCheckerTool(),
-            MedicationInfoTool(),
-            EmergencyCheckTool()
+        """
+        Inicializa as ferramentas.
+        """
+        # Palavras-chave de emergência
+        self.emergency_keywords = [
+            "emergência", "urgente", "desmaio", "desmaiando",
+            "confuso", "confusão", "convulsão", "coma",
+            "não consigo respirar", "dor no peito",
+            "muito mal", "morrendo", "inconsciente",
+            "hipoglicemia severa", "cetoacidose",
         ]
+        
+        # Referência de valores de glicemia
+        self.glycemia_reference = {
+            "jejum_normal": (70, 99),
+            "jejum_pre_diabetes": (100, 125),
+            "jejum_diabetes": (126, float('inf')),
+            "pos_prandial_normal": (0, 140),
+            "pos_prandial_pre_diabetes": (140, 199),
+            "pos_prandial_diabetes": (200, float('inf')),
+            "hipoglicemia_leve": (54, 69),
+            "hipoglicemia_severa": (0, 53),
+        }
+        
+        logger.info("MedicalTools inicializado")
     
-    def get_tools(self):
-        """Retorna lista de ferramentas."""
-        return self.tools
+    def is_emergency_question(self, text: str) -> bool:
+        """
+        Verifica se a mensagem indica emergência.
+        
+        Args:
+            text: Texto da mensagem
+            
+        Returns:
+            True se indica emergência
+        """
+        text_lower = text.lower()
+        
+        for keyword in self.emergency_keywords:
+            if keyword in text_lower:
+                logger.warning(f"Possível emergência detectada: '{keyword}'")
+                return True
+        
+        return False
     
-    def get_tool_by_name(self, name: str) -> Optional[BaseTool]:
-        """Retorna ferramenta pelo nome."""
-        for tool in self.tools:
-            if tool.name == name:
-                return tool
+    def interpret_glycemia(self, value: float, fasting: bool = True) -> Dict[str, Any]:
+        """
+        Interpreta valor de glicemia.
+        
+        Args:
+            value: Valor da glicemia em mg/dL
+            fasting: Se é glicemia de jejum
+            
+        Returns:
+            Interpretação do valor
+        """
+        result = {
+            "value": value,
+            "unit": "mg/dL",
+            "fasting": fasting,
+            "classification": "",
+            "recommendation": "",
+            "alert_level": "normal",
+        }
+        
+        # Verifica hipoglicemia primeiro
+        if value < 54:
+            result["classification"] = "Hipoglicemia severa"
+            result["recommendation"] = "EMERGÊNCIA: Busque atendimento médico imediato!"
+            result["alert_level"] = "critical"
+        elif value < 70:
+            result["classification"] = "Hipoglicemia leve"
+            result["recommendation"] = "Consuma 15g de carboidrato de ação rápida."
+            result["alert_level"] = "warning"
+        elif fasting:
+            if value <= 99:
+                result["classification"] = "Normal"
+                result["recommendation"] = "Valores dentro da faixa saudável."
+            elif value <= 125:
+                result["classification"] = "Pré-diabetes"
+                result["recommendation"] = "Consulte um médico para avaliação."
+                result["alert_level"] = "warning"
+            else:
+                result["classification"] = "Indicativo de diabetes"
+                result["recommendation"] = "Consulte um médico para confirmação diagnóstica."
+                result["alert_level"] = "high"
+        else:  # Pós-prandial
+            if value <= 140:
+                result["classification"] = "Normal"
+                result["recommendation"] = "Valores dentro da faixa saudável."
+            elif value <= 199:
+                result["classification"] = "Pré-diabetes"
+                result["recommendation"] = "Consulte um médico para avaliação."
+                result["alert_level"] = "warning"
+            else:
+                result["classification"] = "Indicativo de diabetes"
+                result["recommendation"] = "Consulte um médico para confirmação diagnóstica."
+                result["alert_level"] = "high"
+        
+        return result
+    
+    def extract_glycemia_value(self, text: str) -> float:
+        """
+        Extrai valor de glicemia do texto.
+        
+        Args:
+            text: Texto contendo valor de glicemia
+            
+        Returns:
+            Valor extraído ou None
+        """
+        # Padrões para extrair valores de glicemia
+        patterns = [
+            r'glicemia[:\s]+?(\d+(?:\.\d+)?)',
+            r'glicose[:\s]+?(\d+(?:\.\d+)?)',
+            r'(\d+(?:\.\d+)?)\s*mg/dl',
+            r'(\d+(?:\.\d+)?)\s*mg',
+        ]
+        
+        text_lower = text.lower()
+        
+        for pattern in patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                return float(match.group(1))
+        
         return None
+    
+    def get_diet_tips(self, condition: str = "diabetes") -> List[str]:
+        """
+        Retorna dicas de alimentação.
+        
+        Args:
+            condition: Condição médica
+            
+        Returns:
+            Lista de dicas
+        """
+        tips = [
+            "Prefira alimentos com baixo índice glicêmico",
+            "Inclua fibras em todas as refeições",
+            "Evite açúcares refinados e refrigerantes",
+            "Consuma proteínas magras",
+            "Faça refeições em horários regulares",
+            "Controle o tamanho das porções",
+            "Hidrate-se adequadamente com água",
+            "Limite o consumo de álcool",
+        ]
+        
+        return tips
 
 
 if __name__ == "__main__":
     tools = MedicalTools()
     
-    # Testa ferramenta de emergência
-    emergency_tool = tools.get_tool_by_name("emergency_check")
-    result = emergency_tool.run("Estou com dor no peito forte")
-    print(result)
+    # Teste de interpretação de glicemia
+    print(tools.interpret_glycemia(85, fasting=True))
+    print(tools.interpret_glycemia(180, fasting=False))
+    
+    # Teste de detecção de emergência
+    print(tools.is_emergency_question("Estou muito confuso e suando"))

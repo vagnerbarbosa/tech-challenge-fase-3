@@ -1,25 +1,31 @@
-# 🏥 Tech Challenge Fase 3 - Assistente Virtual Médico
+# 🏥 Assistente Virtual Médico - Tech Challenge Fase 3
 
-> **Pós-graduação em Inteligência Artificial para Desenvolvedores (IADT)**  
-> Assistente virtual médico personalizado utilizando Fine-tuning de LLM e LangChain
-
----
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![LangChain](https://img.shields.io/badge/LangChain-latest-green.svg)](https://langchain.com/)
+[![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Transformers-orange.svg)](https://huggingface.co/)
 
 ## 📋 Descrição do Projeto
 
-Este projeto implementa um **assistente virtual médico** que utiliza técnicas avançadas de Inteligência Artificial para fornecer informações e orientações de saúde. O sistema é construído com:
+Este projeto implementa um **Assistente Virtual Médico Personalizado** utilizando técnicas avançadas de processamento de linguagem natural (NLP) e aprendizado de máquina. O sistema combina:
 
-- **Fine-tuning de LLM**: Customização de modelos de linguagem (LLaMA ou Falcon) para o domínio médico
-- **LangChain**: Framework para orquestração de prompts e integração com LLMs
-- **LangGraph**: Fluxos automatizados para workflows médicos complexos
-- **Dados Anonimizados**: Proteção de informações sensíveis de pacientes
+- 🔧 **Fine-tuning de LLM** (Large Language Model)
+- 🔗 **LangChain** para integração e orquestração
+- 🔄 **LangGraph** para fluxos automatizados
+- 🔒 **Anonimização de dados** médicos sensíveis
 
----
+## 🎯 Objetivo da Fase 3
+
+Desenvolver um assistente virtual médico capaz de:
+
+1. **Responder perguntas** sobre condições médicas (foco em diabetes)
+2. **Fornecer orientações** personalizadas baseadas em dados clínicos
+3. **Manter conversação** contextualizada e segura
+4. **Garantir privacidade** através de anonimização de dados
 
 ## 📁 Estrutura do Repositório
 
 ```
-tech-challenge-fase-3/
+projeto_fase3/
 ├── data/                          # Datasets
 │   ├── raw/                       # Dados brutos (não versionados)
 │   └── processed/                 # Dados processados e anonimizados
@@ -34,111 +40,119 @@ tech-challenge-fase-3/
 │   │   ├── chains.py             # Chains do LangChain
 │   │   └── tools.py              # Ferramentas customizadas
 │   ├── langgraph_flows/          # Fluxos automatizados
-│   │   └── medical_workflow.py   # Workflow médico com LangGraph
+│   │   └── medical_workflow.py   # Workflow médico
 │   └── utils/                    # Utilitários
 │       ├── logging_config.py     # Configuração de logs
 │       └── validators.py         # Validadores de segurança
 ├── models/                        # Modelos treinados (não versionados)
 ├── logs/                          # Logs do sistema
 ├── tests/                         # Testes unitários
+├── .gitignore                     # Arquivos a ignorar
 ├── .env.example                   # Exemplo de variáveis de ambiente
 ├── requirements.txt               # Dependências Python
-├── main.py                        # Script principal
-└── README.md                      # Este arquivo
+├── README.md                      # Este arquivo
+└── main.py                        # Script principal
 ```
-
----
 
 ## 🚀 Instalação
 
 ### Pré-requisitos
 
-- Python 3.10+
-- CUDA (recomendado para treinamento GPU)
-- Git
+- Python 3.10 ou superior
+- CUDA 11.8+ (para GPU - recomendado)
+- 16GB+ RAM
+- Conta no Hugging Face (para acesso aos modelos)
 
-### Passos de Instalação
+### Passos
 
 1. **Clone o repositório**
-   ```bash
-   git clone https://github.com/vagnerbarbosa/tech-challenge-fase-3.git
-   cd tech-challenge-fase-3
-   ```
+```bash
+git clone https://github.com/vagnerbarbosa/tech-challenge-fase-3.git
+cd tech-challenge-fase-3
+```
 
 2. **Crie um ambiente virtual**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # ou
-   venv\Scripts\activate     # Windows
-   ```
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou
+venv\Scripts\activate     # Windows
+```
 
 3. **Instale as dependências**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 4. **Configure as variáveis de ambiente**
-   ```bash
-   cp .env.example .env
-   # Edite o arquivo .env com suas credenciais
-   ```
+```bash
+cp .env.example .env
+# Edite o arquivo .env com suas credenciais
+```
 
----
+5. **Faça login no Hugging Face**
+```bash
+huggingface-cli login
+```
 
 ## 💻 Como Executar
 
-### Preparação de Dados
-```bash
-python -m src.fine_tuning.data_preparation
-```
-
-### Fine-tuning do Modelo
-```bash
-python -m src.fine_tuning.training
-```
-
-### Executar o Assistente
+### Pipeline Completo
 ```bash
 python main.py
 ```
 
-### Executar Testes
+### Etapas Individuais
+
+```bash
+# 1. Preparação de dados
+python -m src.fine_tuning.data_preparation
+
+# 2. Treinamento do modelo
+python -m src.fine_tuning.training
+
+# 3. Avaliação
+python -m src.fine_tuning.evaluation
+
+# 4. Executar assistente
+python -m src.langchain_integration.assistant
+```
+
+### Testes
 ```bash
 pytest tests/ -v
 ```
 
----
+## 🛠️ Tecnologias Utilizadas
 
-## 📊 Requisitos da Fase 3
+| Tecnologia | Versão | Uso |
+|------------|--------|-----|
+| Python | 3.10+ | Linguagem principal |
+| Transformers | 4.36+ | Modelos de linguagem |
+| LangChain | 0.1+ | Orquestração de LLM |
+| LangGraph | 0.0.20+ | Fluxos automatizados |
+| PyTorch | 2.1+ | Framework de DL |
+| PEFT | 0.7+ | Fine-tuning eficiente (LoRA) |
+| Pandas | 2.1+ | Manipulação de dados |
 
-| Requisito | Descrição | Status |
-|-----------|-----------|--------|
-| Fine-tuning LLM | Customização de LLaMA/Falcon para domínio médico | 🔄 |
-| Integração LangChain | Orquestração de prompts e chains | 🔄 |
-| Fluxos LangGraph | Workflows automatizados | 🔄 |
-| Anonimização | Proteção de dados sensíveis (LGPD) | 🔄 |
-| Logging | Sistema de logs estruturado | 🔄 |
-| Validação | Verificação de segurança das respostas | 🔄 |
+## 📊 Dataset
 
----
+O projeto utiliza dados médicos relacionados a diabetes, seguindo rigorosos padrões de:
 
-## 🔐 Segurança e Privacidade
-
-- **Anonimização**: Todos os dados de pacientes são anonimizados antes do processamento
-- **LGPD**: Conformidade com a Lei Geral de Proteção de Dados
-- **Validação**: Respostas são validadas para evitar informações médicas incorretas
-
----
+- ✅ **LGPD** - Lei Geral de Proteção de Dados
+- ✅ **Anonimização** - Remoção de dados identificáveis
+- ✅ **Segurança** - Validação de inputs e outputs
 
 ## 📝 Licença
 
-Este projeto é desenvolvido para fins educacionais como parte do Tech Challenge da pós-graduação IADT.
+Este projeto é desenvolvido para fins acadêmicos como parte da pós-graduação em IA para Desenvolvedores (IADT).
+
+## 👨‍💻 Autor
+
+**Vagner Barbosa**
+- GitHub: [@vagnerbarbosa](https://github.com/vagnerbarbosa)
+- Website: [vagnerbarbosa.com](https://www.vagnerbarbosa.com)
 
 ---
 
-## 👤 Autor
-
-**Vagner Barbosa**  
-- GitHub: [@vagnerbarbosa](https://github.com/vagnerbarbosa)
-- Website: [vagnerbarbosa.com](https://www.vagnerbarbosa.com)
+*Tech Challenge - FIAP/Alura - Pós-Graduação em IA para Desenvolvedores*

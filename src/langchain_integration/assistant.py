@@ -1,89 +1,93 @@
 """
-Assistente Médico com LangChain
+Assistente Virtual Médico
+=========================
 
-Implementa o assistente virtual médico principal
-utilizando LangChain para orquestração.
+Implementa o assistente médico usando LangChain.
 """
 
 import os
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from langchain.llms.base import LLM
+from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain, ConversationChain
-from langchain.memory import ConversationBufferWindowMemory
+from langchain_core.messages import HumanMessage, AIMessage
 
 from src.utils.logging_config import get_logger
-from src.utils.validators import MedicalResponseValidator
-from .chains import MedicalChain
+from src.utils.validators import InputValidator
+from .chains import MedicalChains
 from .tools import MedicalTools
 
 logger = get_logger(__name__)
 
 
 class MedicalAssistant:
-    """Assistente virtual médico baseado em LangChain."""
+    """
+    Assistente virtual médico especializado em diabetes.
+    """
     
-    SYSTEM_PROMPT = """Você é um assistente médico virtual especializado em fornecer 
-    informações gerais de saúde. Você NÃO substitui consultas médicas profissionais.
-    
-    Diretrizes:
-    1. Sempre recomende buscar um profissional de saúde para diagnósticos
-    2. Forneça informações baseadas em evidências científicas
-    3. Seja empático e acolhedor nas respostas
-    4. Nunca prescreva medicamentos ou tratamentos específicos
-    5. Em caso de emergência, oriente a buscar atendimento imediato
-    
-    Histórico da conversa:
-    {history}
-    
-    Paciente: {input}
-    Assistente: """
-    
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model: Any = None, tokenizer: Any = None):
         """
         Inicializa o assistente médico.
         
         Args:
-            model_path: Caminho para o modelo fine-tuned (opcional)
+            model: Modelo LLM treinado
+            tokenizer: Tokenizer do modelo
         """
-        self.model_path = model_path or "./models/assistente-medico-final"
-        self.validator = MedicalResponseValidator()
+        self.model = model
+        self.tokenizer = tokenizer
+        self.validator = InputValidator()
+        
+        # Memória de conversação
+        self.memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+        )
+        
+        # Chains e ferramentas
+        self.chains = MedicalChains(model, tokenizer)
         self.tools = MedicalTools()
         
-        # Inicializa memória de conversação
-        self.memory = ConversationBufferWindowMemory(
-            k=5,  # Mantém últimas 5 interações
-            return_messages=True
-        )
+        # Prompt do sistema
+        self.system_prompt = self._create_system_prompt()
         
-        # Inicializa chain
-        self._setup_chain()
-        
-        logger.info("Assistente médico inicializado")
+        logger.info("MedicalAssistant inicializado")
     
-    def _setup_chain(self):
-        """Configura a chain do LangChain."""
-        # Template de prompt
-        self.prompt = PromptTemplate(
-            input_variables=["history", "input"],
-            template=self.SYSTEM_PROMPT
-        )
-        
-        # Inicializa a chain médica
-        self.medical_chain = MedicalChain(model_path=self.model_path)
-        
-        # Chain de conversação com memória
-        self.conversation = ConversationChain(
-            llm=self.medical_chain.get_llm(),
-            memory=self.memory,
-            prompt=self.prompt,
-            verbose=os.getenv("DEBUG", "false").lower() == "true"
-        )
-    
-    def respond(self, user_input: str) -> str:
+    def _create_system_prompt(self) -> str:
         """
-        Gera resposta para entrada do usuário.
+        Cria o prompt do sistema para o assistente.
+        
+        Returns:
+            Prompt do sistema
+        """
+        return """Você é um assistente virtual médico especializado em diabetes.
+
+Diretrizes:
+1. Forneça informações precisas e baseadas em evidências científicas
+2. Sempre recomende consultar um médico para diagnósticos e tratamentos
+3. Não forneça diagnósticos - apenas informações educativas
+4. Seja empático e acolhedor nas respostas
+5. Use linguagem clara e acessível
+6. Respeite a privacidade do paciente
+
+Aviso importante: Este assistente fornece apenas informações educativas.
+Para diagnósticos e tratamentos, sempre consulte um profissional de saúde.
+"""
+    
+    def validate_input(self, user_input: str) -> tuple[bool, str]:
+        """
+        Valida a entrada do usuário.
+        
+        Args:
+            user_input: Texto de entrada do usuário
+            
+        Returns:
+            Tupla (é_válido, mensagem)
+        """
+        return self.validator.validate_query(user_input)
+    
+    def process_message(self, user_input: str) -> str:
+        """
+        Processa uma mensagem do usuário.
         
         Args:
             user_input: Mensagem do usuário
@@ -91,62 +95,94 @@ class MedicalAssistant:
         Returns:
             Resposta do assistente
         """
-        logger.info(f"Processando entrada: {user_input[:50]}...")
+        # Valida entrada
+        is_valid, message = self.validate_input(user_input)
+        if not is_valid:
+            return message
         
+        # Verifica se é uma pergunta sobre emergência
+        if self.tools.is_emergency_question(user_input):
+            return self._handle_emergency(user_input)
+        
+        # Processa através da chain principal
         try:
-            # Verifica se é emergência
-            if self._is_emergency(user_input):
-                return self._emergency_response()
+            response = self.chains.qa_chain.invoke({
+                "question": user_input,
+                "chat_history": self.memory.load_memory_variables({})["chat_history"],
+            })
             
-            # Gera resposta via chain
-            response = self.conversation.predict(input=user_input)
+            # Salva na memória
+            self.memory.save_context(
+                {"input": user_input},
+                {"output": response}
+            )
             
-            # Valida resposta
-            validated_response = self.validator.validate_and_clean(response)
-            
-            logger.info("Resposta gerada com sucesso")
-            return validated_response
+            return response
             
         except Exception as e:
-            logger.error(f"Erro ao gerar resposta: {e}")
-            return self._fallback_response()
+            logger.error(f"Erro ao processar mensagem: {e}")
+            return "Desculpe, ocorreu um erro ao processar sua pergunta. Por favor, tente novamente."
     
-    def _is_emergency(self, text: str) -> bool:
-        """Verifica se a mensagem indica emergência médica."""
-        emergency_keywords = [
-            "infarto", "avc", "derrame", "não consigo respirar",
-            "desmaio", "convulsão", "sangramento intenso",
-            "overdose", "suicídio", "acidente grave"
-        ]
-        text_lower = text.lower()
-        return any(keyword in text_lower for keyword in emergency_keywords)
-    
-    def _emergency_response(self) -> str:
-        """Resposta para situações de emergência."""
-        return """🚨 ATENÇÃO: Se você ou alguém está em uma situação de emergência médica, 
-        por favor ligue IMEDIATAMENTE para o SAMU (192) ou dirija-se ao pronto-socorro mais próximo.
+    def _handle_emergency(self, user_input: str) -> str:
+        """
+        Trata casos de emergência.
         
-        Em casos de emergência, cada segundo conta. Não espere - busque ajuda profissional agora!"""
+        Args:
+            user_input: Mensagem do usuário
+            
+        Returns:
+            Resposta de emergência
+        """
+        emergency_response = """⚠️ ATENÇÃO: Sua pergunta pode indicar uma situação de emergência.
+
+Se você está enfrentando uma emergência médica:
+1. Ligue imediatamente para 192 (SAMU) ou 193 (Bombeiros)
+2. Vá ao pronto-socorro mais próximo
+3. Não dirija se estiver se sentindo mal
+
+Sintomas que requerem atendimento imediato:
+- Confusão mental ou perda de consciência
+- Glicemia muito alta (>400 mg/dL) ou muito baixa (<54 mg/dL)
+- Dificuldade para respirar
+- Dor no peito
+- Vômitos persistentes
+
+Este assistente não substitui atendimento médico de emergência."""
+        
+        return emergency_response
     
-    def _fallback_response(self) -> str:
-        """Resposta padrão em caso de erro."""
-        return """Desculpe, não consegui processar sua mensagem no momento. 
-        Por favor, tente reformular sua pergunta ou, se for urgente, 
-        consulte um profissional de saúde."""
-    
-    def clear_history(self):
-        """Limpa histórico de conversação."""
+    def clear_history(self) -> None:
+        """
+        Limpa o histórico de conversação.
+        """
         self.memory.clear()
         logger.info("Histórico de conversação limpo")
     
-    def get_conversation_history(self) -> List[Dict[str, str]]:
-        """Retorna histórico da conversa."""
-        return self.memory.chat_memory.messages
+    def get_chat_history(self) -> List[Dict[str, str]]:
+        """
+        Retorna o histórico de conversação.
+        
+        Returns:
+            Lista de mensagens do histórico
+        """
+        history = self.memory.load_memory_variables({})["chat_history"]
+        return [
+            {"role": "human" if isinstance(msg, HumanMessage) else "ai", "content": msg.content}
+            for msg in history
+        ]
 
 
 if __name__ == "__main__":
+    # Teste básico do assistente
     assistant = MedicalAssistant()
     
-    # Teste simples
-    response = assistant.respond("Quais são os sintomas da gripe?")
-    print(response)
+    test_questions = [
+        "O que é diabetes?",
+        "Quais são os sintomas?",
+        "Estou me sentindo muito mal e confuso",
+    ]
+    
+    for question in test_questions:
+        print(f"\n👤 Usuário: {question}")
+        response = assistant.process_message(question)
+        print(f"🏥 Assistente: {response}")
