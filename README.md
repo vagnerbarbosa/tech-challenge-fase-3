@@ -31,8 +31,8 @@ Desenvolver um assistente virtual médico generalista capaz de:
 | Integração LangChain | Orquestração de prompts e chains | 🔄 |
 | Fluxos LangGraph | Workflows automatizados | 🔄 |
 | Anonimização | Proteção de dados sensíveis (LGPD) | 🔄 |
-| Logging | Sistema de logs estruturado | 🔄 |
-| Validação | Verificação de segurança das respostas | 🔄 |
+| Logging | Sistema de logs estruturado | ✅ |
+| Validação | Verificação de segurança das respostas | ✅ |
 
 ## 📁 Estrutura do Repositório
 
