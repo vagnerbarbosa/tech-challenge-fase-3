@@ -296,12 +296,16 @@ python -c "from huggingface_hub import login; login()"
 
 ## 💻 Como Executar
 
+> ⚠️ **IMPORTANTE:** Todos os comandos devem ser executados a partir da **raiz do projeto** (pasta `tech-challenge-fase-3`).
+
 ### Pipeline Completo
 ```bash
 python main.py
 ```
 
 ### Etapas Individuais
+
+Você pode executar cada módulo separadamente para debug ou teste:
 
 ```bash
 # 1. Preparação de dados
@@ -316,6 +320,27 @@ python -m src.fine_tuning.evaluation
 # 4. Executar assistente
 python -m src.langchain_integration.assistant
 ```
+
+### 📁 Estrutura de Dados
+
+O módulo de preparação de dados procura arquivos nas seguintes localizações:
+
+| Prioridade | Localização | Formato |
+|------------|-------------|---------|
+| 1️⃣ | `data/processed/medical_data_unified.jsonl` | JSONL unificado |
+| 2️⃣ | `data/raw/` | CSV ou JSONL |
+| 3️⃣ | `data/processed/` | CSVs individuais |
+
+**Formato esperado dos arquivos:**
+- Colunas/campos: `instruction`, `input`, `output`
+- Codificação: UTF-8
+
+**Exemplo de registro JSONL:**
+```json
+{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem febre, dor de cabeça..."}
+```
+
+> 💡 **Se nenhum dado for encontrado**, o sistema cria automaticamente um dataset de exemplo com 8 perguntas médicas gerais para demonstração.
 
 ### Testes
 ```bash

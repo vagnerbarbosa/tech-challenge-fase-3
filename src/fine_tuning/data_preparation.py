@@ -10,15 +10,30 @@ Responsável por:
 Formatos suportados:
 - CSV: arquivos com colunas instruction, input, output
 - JSONL: arquivos JSON Lines com campos instruction, input, output
+
+Uso:
+    Via main.py (pipeline completo):
+        python main.py
+    
+    Execução isolada (requer estar na raiz do projeto):
+        python -m src.fine_tuning.data_preparation
 """
 
 import os
 import re
 import json
+import sys
 import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 from datasets import Dataset, DatasetDict
+
+# Determina a raiz do projeto (onde está main.py)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+# Adiciona a raiz ao path para imports funcionarem corretamente
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.utils.logging_config import get_logger
 from src.utils.validators import DataValidator
@@ -37,9 +52,17 @@ class DataPreparation:
         Inicializa o preparador de dados médicos.
         
         Args:
-            data_path: Caminho para os dados. Se None, usa DATA_PATH do .env
+            data_path: Caminho para os dados. Se None, usa DATA_PATH do .env ou 
+                      o diretório 'data' na raiz do projeto
         """
-        self.data_path = Path(data_path or os.getenv("DATA_PATH", "./data"))
+        if data_path:
+            self.data_path = Path(data_path).resolve()
+        elif os.getenv("DATA_PATH"):
+            self.data_path = Path(os.getenv("DATA_PATH")).resolve()
+        else:
+            # Usa o diretório data relativo à raiz do projeto
+            self.data_path = PROJECT_ROOT / "data"
+        
         self.raw_path = self.data_path / "raw"
         self.processed_path = self.data_path / "processed"
         self.validator = DataValidator()
@@ -48,7 +71,11 @@ class DataPreparation:
         self.raw_path.mkdir(parents=True, exist_ok=True)
         self.processed_path.mkdir(parents=True, exist_ok=True)
         
-        logger.info(f"DataPreparation inicializado. Data path: {self.data_path}")
+        logger.info(f"DataPreparation inicializado")
+        logger.info(f"  Raiz do projeto: {PROJECT_ROOT}")
+        logger.info(f"  Diretório de dados: {self.data_path}")
+        logger.info(f"  Dados brutos: {self.raw_path}")
+        logger.info(f"  Dados processados: {self.processed_path}")
     
     def anonymize_text(self, text: str) -> str:
         """
@@ -174,7 +201,18 @@ class DataPreparation:
             logger.info(f"Total combinado: {len(combined)} registros")
             return combined
         
-        logger.warning("Nenhum arquivo de dados encontrado")
+        logger.warning("=" * 60)
+        logger.warning("NENHUM ARQUIVO DE DADOS ENCONTRADO")
+        logger.warning("=" * 60)
+        logger.warning("Locais verificados:")
+        logger.warning(f"  1. JSONL unificado: {self.processed_path / 'medical_data_unified.jsonl'}")
+        logger.warning(f"  2. Dados brutos: {self.raw_path}")
+        logger.warning(f"  3. Dados processados: {self.processed_path}")
+        logger.warning("")
+        logger.warning("Para usar seus próprios dados:")
+        logger.warning("  - Coloque arquivos CSV ou JSONL em: data/raw/")
+        logger.warning("  - Formato: colunas 'instruction', 'input', 'output'")
+        logger.warning("")
         logger.info("Criando dataset de exemplo com dados médicos gerais...")
         return self._create_sample_dataset()
     
@@ -294,8 +332,35 @@ class DataPreparation:
         return dataset
 
 
-if __name__ == "__main__":
-    # Teste do módulo
+def run():
+    """
+    Função principal para execução isolada do módulo.
+    Executa a preparação de dados e exibe um exemplo.
+    """
+    from dotenv import load_dotenv
+    
+    # Carrega variáveis de ambiente do .env na raiz do projeto
+    env_path = PROJECT_ROOT / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"✓ Variáveis de ambiente carregadas de: {env_path}")
+    
+    print("\n" + "=" * 60)
+    print("PREPARAÇÃO DE DADOS - Execução Isolada")
+    print("=" * 60 + "\n")
+    
     prep = DataPreparation()
     dataset = prep.prepare_dataset()
-    print(f"\nExemplo de dado preparado:\n{dataset[0]['text'][:500]}...")
+    
+    print("\n" + "-" * 60)
+    print(f"Dataset preparado com sucesso: {len(dataset)} exemplos")
+    print("-" * 60)
+    print("\nExemplo de dado preparado:")
+    print(dataset[0]['text'][:500] + "...")
+    print("\n✓ Preparação concluída!")
+    
+    return dataset
+
+
+if __name__ == "__main__":
+    run()
