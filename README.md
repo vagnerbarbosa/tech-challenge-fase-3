@@ -323,24 +323,44 @@ python -m src.langchain_integration.assistant
 
 ### 📁 Estrutura de Dados
 
-O módulo de preparação de dados procura arquivos nas seguintes localizações:
+O módulo de preparação de dados **busca automaticamente** todos os arquivos CSV e JSONL em `data/raw/` e os unifica:
 
-| Prioridade | Localização | Formato |
-|------------|-------------|---------|
-| 1️⃣ | `data/processed/medical_data_unified.jsonl` | JSONL unificado |
-| 2️⃣ | `data/raw/` | CSV ou JSONL |
-| 3️⃣ | `data/processed/` | CSVs individuais |
+| Etapa | Localização | Descrição |
+|-------|-------------|-----------|
+| 1️⃣ | `data/raw/*.csv` `data/raw/*.jsonl` | Coloque seus arquivos aqui |
+| 2️⃣ | `data/processed/medical_data_unified.jsonl` | Arquivo unificado gerado automaticamente |
+
+**Como usar:**
+
+1. Coloque seus arquivos CSV ou JSONL em `data/raw/`
+2. Execute: `python -m src.fine_tuning.data_preparation`
+3. O script vai:
+   - ✅ Encontrar todos os CSVs e JSONLs em `data/raw/`
+   - ✅ Normalizar nomes de colunas automaticamente
+   - ✅ Unificar tudo em `data/processed/medical_data_unified.jsonl`
+   - ✅ Preparar o dataset para fine-tuning
 
 **Formato esperado dos arquivos:**
-- Colunas/campos: `instruction`, `input`, `output`
-- Codificação: UTF-8
 
-**Exemplo de registro JSONL:**
-```json
-{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem febre, dor de cabeça..."}
+| Coluna | Obrigatório | Descrição | Variações aceitas |
+|--------|-------------|-----------|-------------------|
+| `instruction` | ✅ | Pergunta ou instrução | `pergunta`, `question`, `prompt` |
+| `input` | ❌ | Contexto adicional (pode ser vazio) | `contexto`, `context` |
+| `output` | ✅ | Resposta esperada | `resposta`, `response`, `answer` |
+
+**Exemplo de CSV:**
+```csv
+instruction,input,output
+"Quais são os sintomas da gripe?","","Os principais sintomas incluem febre, dor de cabeça..."
+"Como tratar dor nas costas?","Paciente com dor há 3 dias","Para dor lombar aguda..."
 ```
 
-> 💡 **Se nenhum dado for encontrado**, o sistema cria automaticamente um dataset de exemplo com 8 perguntas médicas gerais para demonstração.
+**Exemplo de JSONL:**
+```json
+{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem..."}
+```
+
+> 💡 **Se nenhum dado for encontrado** em `data/raw/`, o sistema cria automaticamente um dataset de exemplo para demonstração.
 
 ### Testes
 ```bash

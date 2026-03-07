@@ -151,70 +151,183 @@ class DataPreparation:
         Carrega dados brutos do arquivo (CSV ou JSONL).
         
         Prioridade de busca:
-        1. JSONL unificado (medical_data_unified.jsonl)
-        2. CSV no raw_path
-        3. Dataset de exemplo
+        1. JSONL unificado já existente (medical_data_unified.jsonl)
+        2. Todos os CSVs em data/raw/ (busca automática)
+        3. Todos os JSONLs em data/raw/ (busca automática)
+        4. Dataset de exemplo (se nada encontrado)
+        
+        Se encontrar CSVs/JSONLs em raw/, unifica-os automaticamente
+        em data/processed/medical_data_unified.jsonl
         
         Args:
-            filename: Nome do arquivo de dados médicos
+            filename: Nome do arquivo de dados (para compatibilidade)
             
         Returns:
             DataFrame com os dados carregados
         """
-        # Tenta carregar JSONL unificado primeiro
+        # 1. Tenta carregar JSONL unificado primeiro (se já foi processado antes)
         jsonl_unified = self.processed_path / "medical_data_unified.jsonl"
         if jsonl_unified.exists():
-            logger.info(f"Carregando JSONL unificado: {jsonl_unified}")
+            logger.info(f"✓ Carregando JSONL unificado existente: {jsonl_unified}")
             return self.load_jsonl(jsonl_unified)
         
-        # Tenta carregar arquivo especificado
-        file_path = self.raw_path / filename
+        # 2. Busca TODOS os CSVs em data/raw/
+        csv_files = list(self.raw_path.glob("*.csv"))
+        jsonl_files = list(self.raw_path.glob("*.jsonl"))
         
-        # Determina formato pelo sufixo
-        if file_path.suffix.lower() == '.jsonl':
-            if file_path.exists():
-                return self.load_jsonl(file_path)
-            # Tenta na pasta processed
-            processed_path = self.processed_path / filename
-            if processed_path.exists():
-                return self.load_jsonl(processed_path)
-        elif file_path.suffix.lower() == '.csv':
-            if file_path.exists():
-                logger.info(f"Carregando CSV: {file_path}")
-                df = pd.read_csv(file_path, encoding='utf-8-sig')
-                logger.info(f"Dados carregados: {len(df)} registros")
-                return df
+        if csv_files or jsonl_files:
+            logger.info("=" * 60)
+            logger.info("PROCESSANDO ARQUIVOS DE DATA/RAW")
+            logger.info("=" * 60)
+            
+            dfs = []
+            
+            # Processa CSVs
+            for csv_file in csv_files:
+                logger.info(f"  → Carregando CSV: {csv_file.name}")
+                try:
+                    df = pd.read_csv(csv_file, encoding='utf-8-sig')
+                    # Normaliza nomes de colunas
+                    df = self._normalize_columns(df)
+                    dfs.append(df)
+                    logger.info(f"    ✓ {len(df)} registros carregados")
+                except Exception as e:
+                    logger.warning(f"    ✗ Erro ao carregar {csv_file.name}: {e}")
+            
+            # Processa JSONLs
+            for jsonl_file in jsonl_files:
+                logger.info(f"  → Carregando JSONL: {jsonl_file.name}")
+                try:
+                    df = self.load_jsonl(jsonl_file)
+                    df = self._normalize_columns(df)
+                    if not df.empty:
+                        dfs.append(df)
+                        logger.info(f"    ✓ {len(df)} registros carregados")
+                except Exception as e:
+                    logger.warning(f"    ✗ Erro ao carregar {jsonl_file.name}: {e}")
+            
+            if dfs:
+                combined = pd.concat(dfs, ignore_index=True)
+                logger.info("-" * 60)
+                logger.info(f"✓ Total unificado: {len(combined)} registros de {len(dfs)} arquivo(s)")
+                
+                # Salva o JSONL unificado
+                self._save_unified_jsonl(combined, jsonl_unified)
+                
+                return combined
         
-        # Se não encontrar nada, tenta CSVs individuais no processed
-        logger.info("Tentando carregar CSVs individuais processados...")
-        dfs = []
-        for csv_file in ['perguntas_frequentes.csv', 'modelos_laudos.csv', 'protocolos_medicos.csv']:
-            csv_path = self.processed_path / csv_file
-            if csv_path.exists():
-                df = pd.read_csv(csv_path, encoding='utf-8-sig')
-                dfs.append(df)
-                logger.info(f"Carregado: {csv_file} ({len(df)} registros)")
+        # 3. Tenta CSVs já processados (fallback)
+        processed_csvs = list(self.processed_path.glob("*.csv"))
+        if processed_csvs:
+            logger.info("Carregando CSVs já processados...")
+            dfs = []
+            for csv_file in processed_csvs:
+                if csv_file.name != "sample_medical_qa.csv":  # Ignora sample
+                    df = pd.read_csv(csv_file, encoding='utf-8-sig')
+                    dfs.append(df)
+                    logger.info(f"  → {csv_file.name}: {len(df)} registros")
+            
+            if dfs:
+                combined = pd.concat(dfs, ignore_index=True)
+                return combined
         
-        if dfs:
-            # Combina e normaliza colunas
-            combined = pd.concat(dfs, ignore_index=True)
-            logger.info(f"Total combinado: {len(combined)} registros")
-            return combined
-        
+        # 4. Nenhum dado encontrado
         logger.warning("=" * 60)
         logger.warning("NENHUM ARQUIVO DE DADOS ENCONTRADO")
         logger.warning("=" * 60)
-        logger.warning("Locais verificados:")
-        logger.warning(f"  1. JSONL unificado: {self.processed_path / 'medical_data_unified.jsonl'}")
-        logger.warning(f"  2. Dados brutos: {self.raw_path}")
-        logger.warning(f"  3. Dados processados: {self.processed_path}")
+        logger.warning("")
+        logger.warning("O script buscou em:")
+        logger.warning(f"  1. {self.processed_path / 'medical_data_unified.jsonl'}")
+        logger.warning(f"  2. {self.raw_path}/*.csv")
+        logger.warning(f"  3. {self.raw_path}/*.jsonl")
         logger.warning("")
         logger.warning("Para usar seus próprios dados:")
-        logger.warning("  - Coloque arquivos CSV ou JSONL em: data/raw/")
-        logger.warning("  - Formato: colunas 'instruction', 'input', 'output'")
+        logger.warning("  1. Coloque arquivos CSV ou JSONL em: data/raw/")
+        logger.warning("  2. Formato esperado: colunas 'instruction', 'input', 'output'")
+        logger.warning("  3. Execute novamente: python -m src.fine_tuning.data_preparation")
         logger.warning("")
-        logger.info("Criando dataset de exemplo com dados médicos gerais...")
+        logger.info("Criando dataset de exemplo para demonstração...")
         return self._create_sample_dataset()
+    
+    def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normaliza nomes de colunas para o formato padrão.
+        Aceita variações comuns como 'pergunta', 'resposta', 'question', etc.
+        
+        Args:
+            df: DataFrame com colunas possivelmente não padronizadas
+            
+        Returns:
+            DataFrame com colunas normalizadas
+        """
+        # Mapeamento de variações para nomes padrão
+        column_mapping = {
+            # instruction
+            'instruction': 'instruction',
+            'instrucao': 'instruction',
+            'pergunta': 'instruction',
+            'question': 'instruction',
+            'prompt': 'instruction',
+            # input
+            'input': 'input',
+            'entrada': 'input',
+            'context': 'input',
+            'contexto': 'input',
+            # output
+            'output': 'output',
+            'saida': 'input',
+            'resposta': 'output',
+            'response': 'output',
+            'answer': 'output',
+        }
+        
+        # Aplica mapeamento (case insensitive)
+        new_columns = {}
+        for col in df.columns:
+            col_lower = col.lower().strip()
+            if col_lower in column_mapping:
+                new_columns[col] = column_mapping[col_lower]
+        
+        if new_columns:
+            df = df.rename(columns=new_columns)
+        
+        # Garante que as colunas necessárias existam
+        for col in ['instruction', 'input', 'output']:
+            if col not in df.columns:
+                df[col] = ''
+        
+        return df[['instruction', 'input', 'output']]
+    
+    def _save_unified_jsonl(self, df: pd.DataFrame, output_path: Path) -> None:
+        """
+        Salva o DataFrame unificado como JSONL.
+        
+        Args:
+            df: DataFrame a ser salvo
+            output_path: Caminho do arquivo JSONL de saída
+        """
+        logger.info(f"Salvando JSONL unificado: {output_path}")
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            for _, row in df.iterrows():
+                # Trata NaN e valores vazios
+                instruction = row.get('instruction', '')
+                input_val = row.get('input', '')
+                output_val = row.get('output', '')
+                
+                # Converte NaN para string vazia
+                instruction = '' if pd.isna(instruction) else str(instruction)
+                input_val = '' if pd.isna(input_val) else str(input_val)
+                output_val = '' if pd.isna(output_val) else str(output_val)
+                
+                record = {
+                    'instruction': instruction,
+                    'input': input_val,
+                    'output': output_val
+                }
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
+        
+        logger.info(f"✓ JSONL unificado salvo com {len(df)} registros")
     
     def _create_sample_dataset(self) -> pd.DataFrame:
         """
@@ -289,10 +402,12 @@ class DataPreparation:
         """
         # Formata as instruções no formato de chat
         def format_instruction(row):
-            if row.get('input', ''):
-                text = f"### Instrução:\n{row['instruction']}\n\n### Contexto:\n{row['input']}\n\n### Resposta:\n{row['output']}"
-            else:
+            input_val = row.get('input', '')
+            # Trata NaN e strings "nan"
+            if pd.isna(input_val) or str(input_val).lower() == 'nan' or not str(input_val).strip():
                 text = f"### Instrução:\n{row['instruction']}\n\n### Resposta:\n{row['output']}"
+            else:
+                text = f"### Instrução:\n{row['instruction']}\n\n### Contexto:\n{input_val}\n\n### Resposta:\n{row['output']}"
             return text
         
         df['text'] = df.apply(format_instruction, axis=1)
