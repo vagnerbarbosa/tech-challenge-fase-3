@@ -416,24 +416,36 @@ IMPRESSÃO:
     
     def run(self) -> Path:
         """
-        Executa o scraping completo e salva em CSV.
+        Executa o scraping completo e salva em JSONL.
         
         Returns:
-            Path do arquivo CSV gerado
+            Path do arquivo JSONL gerado
         """
         try:
             templates = self.scrape()
             
-            # Define colunas para o CSV
-            columns = ["nome", "modalidade", "indicacoes", "estrutura_laudo", "especialidade", "fonte"]
-            
-            # Garante que todas as colunas existam
+            # Transforma para formato instruction/input/output
+            transformed = []
             for t in templates:
-                for col in columns:
-                    if col not in t:
-                        t[col] = ""
+                nome = t.get("nome", "")
+                modalidade = t.get("modalidade", "")
+                indicacoes = t.get("indicacoes", "")
+                estrutura_laudo = t.get("estrutura_laudo", "")
+                
+                # Monta o input com contexto
+                input_parts = []
+                if modalidade:
+                    input_parts.append(f"Modalidade: {modalidade}")
+                if indicacoes:
+                    input_parts.append(f"Indicações: {indicacoes}")
+                
+                transformed.append({
+                    "instruction": f"Como estruturar um laudo de {nome}?",
+                    "input": " | ".join(input_parts) if input_parts else "",
+                    "output": estrutura_laudo,
+                })
             
-            filepath = self._save_to_csv(templates, "modelos_laudos", columns)
+            filepath = self._save_to_jsonl(transformed, "modelos_laudos", "RadReport-RSNA")
             return filepath
             
         except Exception as e:

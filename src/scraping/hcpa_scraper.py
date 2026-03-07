@@ -588,24 +588,28 @@ class HCPAScraper(BaseScraper):
     
     def run(self) -> Path:
         """
-        Executa o scraping completo e salva em CSV.
+        Executa o scraping completo e salva em JSONL.
         
         Returns:
-            Path do arquivo CSV gerado
+            Path do arquivo JSONL gerado
         """
         try:
             protocols = self.scrape()
             
-            # Define colunas para o CSV
-            columns = ["titulo", "especialidade", "descricao", "link", "fonte"]
-            
-            # Garante que todas as colunas existam
+            # Transforma para formato instruction/input/output
+            transformed = []
             for p in protocols:
-                for col in columns:
-                    if col not in p:
-                        p[col] = ""
+                titulo = p.get("titulo", "")
+                especialidade = p.get("especialidade", "")
+                descricao = p.get("descricao", "")
+                
+                transformed.append({
+                    "instruction": f"Quais são as diretrizes do protocolo de {titulo}?",
+                    "input": f"Especialidade: {especialidade}" if especialidade else "",
+                    "output": descricao,
+                })
             
-            filepath = self._save_to_csv(protocols, "protocolos_medicos", columns)
+            filepath = self._save_to_jsonl(transformed, "protocolos_medicos", "CONITEC/MS")
             return filepath
             
         except Exception as e:

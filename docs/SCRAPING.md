@@ -2,13 +2,13 @@
 
 ## 📖 Visão Geral
 
-Este módulo contém scrapers para coleta de dados médicos de três fontes:
+Este módulo contém scrapers para coleta de dados médicos de três fontes. Todos os scrapers geram arquivos **JSONL** diretamente no formato para fine-tuning.
 
 | Fonte | Tipo de Dados | Arquivo Gerado |
 |-------|---------------|----------------|
-| CONITEC/MS | Protocolos Clínicos e Diretrizes Terapêuticas | `protocolos_medicos.csv` |
-| TelessaúdeRS | Perguntas frequentes e condutas | `perguntas_frequentes.csv` |
-| RadReport | Modelos de laudos radiológicos | `modelos_laudos.csv` |
+| CONITEC/MS | Protocolos Clínicos e Diretrizes | `protocolos_medicos.jsonl` |
+| TelessaúdeRS | Perguntas frequentes e condutas | `perguntas_frequentes.jsonl` |
+| RadReport | Modelos de laudos radiológicos | `modelos_laudos.jsonl` |
 
 ## 🚀 Como Executar
 
@@ -32,257 +32,130 @@ python -m src.scraping.telessaude_scraper
 python -m src.scraping.radreport_scraper
 ```
 
-## 📂 Estrutura dos Arquivos Gerados
+## 📂 Formato JSONL Gerado
 
-### protocolos_medicos.csv
+Todos os scrapers geram arquivos JSONL em `data/raw/` com a seguinte estrutura:
 
-| Coluna | Descrição |
-|--------|----------|
-| titulo | Nome do protocolo clínico |
-| especialidade | Área médica (mapeamento automático) |
-| descricao | Breve descrição do protocolo |
-| link | URL do documento no portal CONITEC |
-| fonte | Origem dos dados (CONITEC/MS) |
+```json
+{
+  "instruction": "Pergunta ou instrução para o modelo",
+  "input": "Contexto adicional (opcional)",
+  "output": "Resposta esperada",
+  "source": "Fonte dos dados"
+}
+```
 
-**Estatísticas da Coleta:**
-- 📊 **182 registros** de alta qualidade
-- ✅ **0% valores nulos** (dados completos)
-- ✅ **100% taxa de validação**
-- 🔗 **84.6% links únicos**
+### Exemplo de Registro
 
-### perguntas_frequentes.csv
-
-| Coluna | Descrição |
-|--------|----------|
-| pergunta | Questão clínica |
-| resposta | Resposta/conduta médica |
-| especialidade | Área médica |
-| categoria | Tipo de conteúdo |
-| fonte | Origem dos dados (TelessaúdeRS) |
-
-### modelos_laudos.csv
-
-| Coluna | Descrição |
-|--------|----------|
-| nome | Nome do exame/procedimento |
-| modalidade | Tipo de imagem (TC, RM, US, etc.) |
-| indicacoes | Indicações clínicas |
-| estrutura_laudo | Template do laudo |
-| especialidade | Subespecialidade radiológica |
-| fonte | Origem dos dados (RadReport) |
+```json
+{"instruction": "Quando está indicado o uso de antibióticos em IVAS?", "input": "Especialidade: Infectologia | Categoria: Uso racional de medicamentos", "output": "A maioria das infecções de vias aéreas superiores é causada por vírus...", "source": "TelessaúdeRS-UFRGS"}
+```
 
 ## 🛠️ Arquitetura
 
 ```
 src/scraping/
 ├── __init__.py              # Exports do módulo
-├── base_scraper.py          # Classe base com funcionalidades comuns
-├── hcpa_scraper.py          # Scraper CONITEC/MS (nome mantido por compatibilidade)
+├── base_scraper.py          # Classe base com _save_to_jsonl()
+├── hcpa_scraper.py          # Scraper CONITEC/MS
 ├── telessaude_scraper.py    # Scraper do TelessaúdeRS
 ├── radreport_scraper.py     # Scraper do RadReport
 └── run_scrapers.py          # Script principal
+
+data/
+├── raw/                     # Arquivos JSONL gerados pelos scrapers
+│   ├── protocolos_medicos.jsonl
+│   ├── perguntas_frequentes.jsonl
+│   └── modelos_laudos.jsonl
+└── processed/               # JSONL unificado para training
+    └── medical_data_unified.jsonl
 ```
-
-### BaseScraper
-
-Classe abstrata que fornece:
-- Gerenciamento de sessões HTTP
-- Headers realistas (User-Agent)
-- Delays entre requisições (1-3s)
-- Sistema de retry com backoff
-- Salvamento em CSV
 
 ## ⚙️ Configurações
 
 ### Variáveis de Ambiente
 
 ```bash
-# Caminho para salvar os dados (default: ./data)
-DATA_PATH=./data
-
-# Nível de log (default: INFO)
-LOG_LEVEL=INFO
+DATA_PATH=./data        # Caminho base para dados (default: ./data)
+LOG_LEVEL=INFO          # Nível de log (default: INFO)
 ```
 
-### Parâmetro `max_items` - Limite de Itens
+### Parâmetro `max_items`
 
-Cada scraper suporta o parâmetro `max_items` para limitar a quantidade de dados coletados:
+Cada scraper suporta o parâmetro `max_items` para limitar a quantidade de dados:
 
-| Scraper | Parâmetro | Default | Descrição |
-|---------|-----------|---------|-----------|
-| CONITEC/MS | `max_items` | 50 | Limite de protocolos médicos |
-| TelessaúdeRS | `max_items` | 30 | Limite de FAQs/perguntas |
-| RadReport | `max_items` | 20 | Limite de modelos de laudos |
+| Scraper | Default | Descrição |
+|---------|---------|-----------|
+| CONITEC/MS | 50 | Protocolos médicos |
+| TelessaúdeRS | 30 | FAQs/perguntas |
+| RadReport | 20 | Modelos de laudos |
 
-**Nota:** Use `None` para coletar todos os dados disponíveis (sem limite).
+Use `None` para coletar todos os dados disponíveis.
 
-#### Modificando os Limites
-
-Os limites padrão estão configurados em `run_scrapers.py`:
-
-```python
-SCRAPER_CONFIG = {
-    "hcpa": {"max_items": 50},        # Protocolos médicos (CONITEC/MS)
-    "telessaude": {"max_items": 30},  # FAQs/perguntas
-    "radreport": {"max_items": 20},   # Modelos de laudos
-}
-```
-
-Para alterar os limites, edite os valores no dicionário `SCRAPER_CONFIG` ou passe parâmetros diretamente:
-
-```python
-# Via função
-from src.scraping.run_scrapers import run_all_scrapers
-
-results = run_all_scrapers(
-    max_items_hcpa=100,      # Coletar até 100 protocolos
-    max_items_telessaude=50, # Coletar até 50 FAQs
-    max_items_radreport=None # Sem limite para laudos
-)
-```
-
-### Boas Práticas Implementadas
-
-- ✅ **User-Agent** realista para simular navegador
-- ✅ **Delays aleatórios** entre requisições (1-3s)
-- ✅ **Retry com backoff** em caso de falhas
-- ✅ **Timeout** para evitar travamentos
-- ✅ **Logging estruturado** para monitoramento
-- ✅ **Tratamento de erros** robusto
-
-## 📊 Exemplo de Uso em Código
-
-```python
-from src.scraping import HCPAScraper, TelessaudeScraper, RadReportScraper
-from src.utils.logging_config import setup_logging
-
-# Configura logging
-setup_logging()
-
-# Executa scraper individual com limite de itens
-scraper = HCPAScraper(output_path="./data", max_items=10)
-protocolos = scraper.scrape()  # Retorna lista de dicionários (máximo 10)
-filepath = scraper.run()       # Executa e salva CSV
-
-print(f"Coletados {len(protocolos)} protocolos")
-print(f"Arquivo salvo em: {filepath}")
-
-# Exemplo sem limite (coleta todos os dados)
-scraper_full = TelessaudeScraper(max_items=None)
-faqs = scraper_full.scrape()
-print(f"Coletadas {len(faqs)} FAQs")
-```
-
-## 📈 Fontes de Dados
+## 📊 Fontes de Dados
 
 ### CONITEC/MS - Comissão Nacional de Incorporação de Tecnologias no SUS
 
-- **URL**: https://www.gov.br/conitec/pt-br/assuntos/avaliacao-de-tecnologias-em-saude/protocolos-clinicos-e-diretrizes-terapeuticas
-- **Conteúdo**: Protocolos Clínicos e Diretrizes Terapêuticas (PCDT) oficiais do Ministério da Saúde
-- **Qualidade**: Documentos revisados e aprovados pelo Ministério da Saúde do Brasil
-- **Cobertura**: 50+ especialidades médicas mapeadas automaticamente
-
-> **Nota histórica**: Anteriormente este scraper coletava dados do HCPA (Hospital de Clínicas de Porto Alegre), mas a fonte foi migrada para CONITEC/MS devido a melhor disponibilidade e qualidade dos dados. O nome do arquivo (`hcpa_scraper.py`) foi mantido por compatibilidade.
-
-#### Mapeamento Automático de Especialidades
-
-O scraper implementa um sistema inteligente de mapeamento que identifica automaticamente a especialidade médica baseada em palavras-chave no título do protocolo:
-
-| Palavras-chave | Especialidade Mapeada |
-|----------------|----------------------|
-| diabetes, insulina, glicemia | Endocrinologia |
-| câncer, tumor, neoplasia, oncologia | Oncologia |
-| coração, cardíaco, infarto, arritmia | Cardiologia |
-| renal, rim, diálise, nefropatia | Nefrologia |
-| hepatite, fígado, hepático, cirrose | Hepatologia |
-| ... | (50+ especialidades) |
+- **URL**: https://www.gov.br/conitec/
+- **Conteúdo**: Protocolos Clínicos e Diretrizes Terapêuticas (PCDT)
+- **Transformação**: `titulo` → instruction, `descricao` → output
 
 ### TelessaúdeRS - UFRGS
 
 - **URL**: https://www.ufrgs.br/telessauders
-- **Conteúdo**: Telecondutas e perguntas frequentes para atenção primária
-- **Parceria**: Ministério da Saúde e SES/RS
+- **Conteúdo**: Telecondutas e perguntas frequentes
+- **Transformação**: `pergunta` → instruction, `resposta` → output
 
 ### RadReport - RSNA
 
 - **URL**: https://radreport.org
 - **Conteúdo**: Templates de laudos radiológicos padronizados
-- **Nota**: RSNA não publica novos templates desde dezembro de 2022
+- **Transformação**: `nome` → instruction, `estrutura_laudo` → output
 
-## 📊 Comparativo de Qualidade
+## 🔄 Fluxo de Dados
 
-| Métrica | CONITEC/MS (Atual) | HCPA (Anterior) |
-|---------|-------------------|-----------------|
-| Total de registros | 182 | ~35 |
-| Valores nulos | 0% | ~57% |
-| Taxa de validação | 100% | ~60% |
-| Links únicos | 84.6% | ~70% |
-| Especialidades mapeadas | 50+ | ~15 |
+```
+1. Scraping                    2. Preparação                3. Training
+   ─────────────────────────────────────────────────────────────────────
+   
+   run_scrapers.py            data_preparation.py          training.py
+         │                           │                          │
+         ▼                           ▼                          ▼
+   data/raw/                  data/processed/              Fine-tuning
+   ├── protocolos.jsonl  ───► medical_data_unified.jsonl ───► LLM
+   ├── perguntas.jsonl
+   └── modelos.jsonl
+```
+
+### Exemplo de Uso
+
+```python
+# 1. Executar scraping
+from src.scraping.run_scrapers import run_all_scrapers
+results = run_all_scrapers()
+
+# 2. Preparar dados para training
+from src.fine_tuning.data_preparation import DataPreparation
+prep = DataPreparation()
+dataset = prep.prepare_dataset()
+```
 
 ## ⚠️ Considerações
 
-1. **Uso responsável**: Os scrapers implementam delays para não sobrecarregar os servidores.
+1. **Uso responsável**: Os scrapers implementam delays (1-3s) entre requisições.
 
-2. **Dados complementares**: Além do scraping web, os scrapers incluem dados estruturados conhecidos para garantir quantidade adequada para estudos.
+2. **Formato direto**: Dados já saem no formato JSONL pronto para fine-tuning.
 
-3. **Atualização**: Execute os scrapers periodicamente para obter dados atualizados.
+3. **Sem conversões**: Não há mais etapa de CSV → JSONL, simplificando o fluxo.
 
-4. **Limitações**: Algumas páginas podem requerer JavaScript para renderização completa. Os dados estruturados complementam o conteúdo dinâmico.
+4. **Atualização**: Execute os scrapers periodicamente para dados atualizados.
 
-5. **Validação rigorosa**: O scraper CONITEC/MS implementa validação para garantir que apenas conteúdo médico relevante seja coletado (filtros regex, palavras-chave médicas obrigatórias, remoção de entradas duplicadas).
+## 📈 Boas Práticas Implementadas
 
-## 🔄 Sanitização e Conversão para JSONL
-
-Após a coleta dos dados via scraping, é necessário sanitizar e converter os CSVs para formato JSONL, adequado para fine-tuning de LLMs.
-
-### Execução
-
-```bash
-python -m src.data_processing.run_sanitization
-```
-
-### Processo de Sanitização
-
-1. **Limpeza de texto**: Remove tags HTML, caracteres especiais e espaços múltiplos
-2. **Validação de tamanho**: instruction ≥ 5 caracteres, output ≥ 10 caracteres
-3. **Remoção de duplicatas**: Baseado em título normalizado
-4. **Transformação de colunas**: Mapeia colunas originais para formato instruction/input/output
-
-### Transformações por Arquivo
-
-| Arquivo Original | instruction | input | output |
-|------------------|-------------|-------|--------|
-| `perguntas_frequentes.csv` | pergunta | especialidade + categoria | resposta |
-| `modelos_laudos.csv` | "Como estruturar um laudo de {nome}?" | modalidade + indicacoes | estrutura_laudo |
-| `protocolos_medicos.csv` | "Quais são as diretrizes do protocolo de {titulo}?" | especialidade | descricao |
-
-### Arquivos Gerados
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `perguntas_frequentes.jsonl` | FAQs convertidas para instruction/output |
-| `modelos_laudos.jsonl` | Templates de laudos com instruções sintéticas |
-| `protocolos_medicos.jsonl` | Protocolos convertidos para formato de QA |
-| `medical_data_unified.jsonl` | Todos os dados unificados (recomendado para training) |
-| `sanitization_report.json` | Relatório de estatísticas da sanitização |
-
-### Formato JSONL
-
-Cada linha do arquivo JSONL contém um objeto JSON com:
-
-```json
-{
-  "instruction": "Pergunta ou instrução para o modelo",
-  "input": "Contexto adicional opcional",
-  "output": "Resposta esperada",
-  "source": "Fonte dos dados (TelessaúdeRS, RadReport, CONITEC/MS)",
-  "category": "Categoria (perguntas_frequentes, modelos_laudos, protocolos_medicos)"
-}
-```
-
-### Estatísticas de Sanitização
-
-O script gera um relatório com:
-- Total de registros de entrada/saída
-- Registros removidos (HTML, curtos, vazios, duplicados)
-- Taxa de aproveitamento
+- ✅ User-Agent realista para simular navegador
+- ✅ Delays aleatórios entre requisições (1-3s)
+- ✅ Retry com backoff em caso de falhas
+- ✅ Timeout para evitar travamentos
+- ✅ Logging estruturado para monitoramento
+- ✅ Tratamento de erros robusto
+- ✅ Formato JSONL nativo (sem conversões)

@@ -321,46 +321,58 @@ python -m src.fine_tuning.evaluation
 python -m src.langchain_integration.assistant
 ```
 
-### 📁 Estrutura de Dados
+### 📁 Fluxo de Dados
 
-O módulo de preparação de dados **busca automaticamente** todos os arquivos CSV e JSONL em `data/raw/` e os unifica:
+O projeto trabalha exclusivamente com arquivos **JSONL**, otimizados para fine-tuning:
 
-| Etapa | Localização | Descrição |
-|-------|-------------|-----------|
-| 1️⃣ | `data/raw/*.csv` `data/raw/*.jsonl` | Coloque seus arquivos aqui |
-| 2️⃣ | `data/processed/medical_data_unified.jsonl` | Arquivo unificado gerado automaticamente |
-
-**Como usar:**
-
-1. Coloque seus arquivos CSV ou JSONL em `data/raw/`
-2. Execute: `python -m src.fine_tuning.data_preparation`
-3. O script vai:
-   - ✅ Encontrar todos os CSVs e JSONLs em `data/raw/`
-   - ✅ Normalizar nomes de colunas automaticamente
-   - ✅ Unificar tudo em `data/processed/medical_data_unified.jsonl`
-   - ✅ Preparar o dataset para fine-tuning
-
-**Formato esperado dos arquivos:**
-
-| Coluna | Obrigatório | Descrição | Variações aceitas |
-|--------|-------------|-----------|-------------------|
-| `instruction` | ✅ | Pergunta ou instrução | `pergunta`, `question`, `prompt` |
-| `input` | ❌ | Contexto adicional (pode ser vazio) | `contexto`, `context` |
-| `output` | ✅ | Resposta esperada | `resposta`, `response`, `answer` |
-
-**Exemplo de CSV:**
-```csv
-instruction,input,output
-"Quais são os sintomas da gripe?","","Os principais sintomas incluem febre, dor de cabeça..."
-"Como tratar dor nas costas?","Paciente com dor há 3 dias","Para dor lombar aguda..."
+```
+1. Scraping                    2. Preparação                3. Training
+   ─────────────────────────────────────────────────────────────────────
+   
+   run_scrapers.py            data_preparation.py          training.py
+         │                           │                          │
+         ▼                           ▼                          ▼
+   data/raw/                  data/processed/              Fine-tuning
+   └── *.jsonl           ───► medical_data_unified.jsonl ───► LLM
 ```
 
-**Exemplo de JSONL:**
+### Opção 1: Usar os Scrapers (Recomendado)
+
+Execute os scrapers para coletar dados médicos automaticamente:
+
+```bash
+# Executar todos os scrapers
+python -m src.scraping.run_scrapers
+
+# Preparar dados para training
+python -m src.fine_tuning.data_preparation
+```
+
+Os scrapers geram arquivos JSONL em `data/raw/`:
+- `protocolos_medicos.jsonl` - CONITEC/MS
+- `perguntas_frequentes.jsonl` - TelessaúdeRS
+- `modelos_laudos.jsonl` - RadReport
+
+### Opção 2: Fornecer seus próprios dados
+
+Coloque arquivos `.jsonl` em `data/raw/` com o formato:
+
 ```json
-{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem..."}
+{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem febre..."}
+{"instruction": "Como tratar dor lombar?", "input": "Paciente com dor há 3 dias", "output": "Para dor lombar aguda..."}
 ```
 
-> 💡 **Se nenhum dado for encontrado** em `data/raw/`, o sistema cria automaticamente um dataset de exemplo para demonstração.
+**Campos obrigatórios:**
+
+| Campo | Descrição |
+|-------|-----------|
+| `instruction` | Pergunta ou instrução para o modelo |
+| `input` | Contexto adicional (pode ser vazio) |
+| `output` | Resposta esperada |
+
+> 💡 **Se nenhum dado for encontrado** em `data/raw/`, o sistema cria automaticamente um dataset de exemplo.
+
+Para mais detalhes sobre o scraping, consulte [docs/SCRAPING.md](docs/SCRAPING.md).
 
 ### Testes
 ```bash
