@@ -96,9 +96,13 @@ docs/*.pdf
 .DS_Store
 Thumbs.db
 
-# Hugging Face cache
+# Hugging Face cache e tokens
 .cache/
 *.cache
+.huggingface/
+huggingface_token.txt
+**/token
+**/hf_token*
 
 # Weights & Biases
 wandb/
