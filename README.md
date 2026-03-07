@@ -336,9 +336,39 @@ O projeto trabalha exclusivamente com arquivos **JSONL**, otimizados para fine-t
    └── *.jsonl           ───► medical_data_unified.jsonl ───► LLM
 ```
 
-### Opção 1: Usar os Scrapers (Recomendado)
+### 🔄 Comportamento Automático de Dados
 
-Execute os scrapers para coletar dados médicos automaticamente:
+O sistema é **auto-suficiente** e garante que sempre haverá dados para a pipeline:
+
+1. **Validação**: Verifica se `data/raw/` contém arquivos JSONL válidos
+2. **Limpeza**: Se houver arquivos inválidos ou não-JSONL, limpa o diretório
+3. **Scraping Automático**: Invoca os scrapers para coletar dados médicos
+4. **Fallback**: Se os scrapers falharem, cria um arquivo de exemplo com 5 registros
+
+Isso significa que você pode simplesmente executar:
+
+```bash
+python main.py
+# ou
+python -m src.fine_tuning.data_preparation
+```
+
+E o sistema automaticamente:
+- Detectará a ausência de dados
+- Executará os scrapers
+- Ou criará dados de exemplo se necessário
+
+### Opção 1: Execução Automática (Recomendado)
+
+Basta executar o pipeline principal - os scrapers serão invocados automaticamente se necessário:
+
+```bash
+python main.py
+```
+
+### Opção 2: Executar Scrapers Manualmente
+
+Se preferir controle manual sobre o scraping:
 
 ```bash
 # Executar todos os scrapers
@@ -353,7 +383,7 @@ Os scrapers geram arquivos JSONL em `data/raw/`:
 - `perguntas_frequentes.jsonl` - TelessaúdeRS
 - `modelos_laudos.jsonl` - RadReport
 
-### Opção 2: Fornecer seus próprios dados
+### Opção 3: Fornecer seus próprios dados
 
 Coloque arquivos `.jsonl` em `data/raw/` com o formato:
 
@@ -369,8 +399,6 @@ Coloque arquivos `.jsonl` em `data/raw/` com o formato:
 | `instruction` | Pergunta ou instrução para o modelo |
 | `input` | Contexto adicional (pode ser vazio) |
 | `output` | Resposta esperada |
-
-> 💡 **Se nenhum dado for encontrado** em `data/raw/`, o sistema cria automaticamente um dataset de exemplo.
 
 Para mais detalhes sobre o scraping, consulte [docs/SCRAPING.md](docs/SCRAPING.md).
 

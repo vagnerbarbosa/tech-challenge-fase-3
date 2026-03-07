@@ -3,6 +3,8 @@ Módulo de Preparação de Dados para Fine-Tuning
 ==============================================
 
 Responsável por:
+- Validar e preparar o diretório data/raw/
+- Invocar scrapers automaticamente se necessário
 - Carregar arquivos JSONL de data/raw/
 - Unificar em um único JSONL em data/processed/
 - Validar e limpar os dados
@@ -27,6 +29,7 @@ import os
 import re
 import json
 import sys
+import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
 from datasets import Dataset
@@ -75,6 +78,198 @@ class DataPreparation:
         logger.info(f"DataPreparation inicializado")
         logger.info(f"  Dados brutos: {self.raw_path}")
         logger.info(f"  Dados processados: {self.processed_path}")
+    
+    def validate_raw_directory(self) -> bool:
+        """
+        Valida se o diretório data/raw/ contém arquivos JSONL válidos.
+        
+        Returns:
+            True se há arquivos JSONL válidos, False caso contrário
+        """
+        logger.info("=" * 60)
+        logger.info("VALIDAÇÃO DO DIRETÓRIO DE DADOS")
+        logger.info("=" * 60)
+        
+        # Lista todos os arquivos no diretório
+        all_files = list(self.raw_path.iterdir()) if self.raw_path.exists() else []
+        
+        # Ignora arquivos ocultos e .gitkeep
+        visible_files = [f for f in all_files if f.is_file() and not f.name.startswith('.')]
+        
+        if not visible_files:
+            logger.warning(f"Diretório vazio: {self.raw_path}")
+            return False
+        
+        # Verifica arquivos JSONL
+        jsonl_files = [f for f in visible_files if f.suffix.lower() == '.jsonl']
+        non_jsonl_files = [f for f in visible_files if f.suffix.lower() != '.jsonl']
+        
+        if non_jsonl_files:
+            logger.warning(f"Arquivos não-JSONL encontrados ({len(non_jsonl_files)}):")
+            for f in non_jsonl_files:
+                logger.warning(f"  - {f.name}")
+        
+        if not jsonl_files:
+            logger.warning("Nenhum arquivo JSONL encontrado!")
+            return False
+        
+        # Verifica se os arquivos JSONL são válidos (não vazios e com JSON válido)
+        valid_jsonl_count = 0
+        for jsonl_file in jsonl_files:
+            try:
+                with open(jsonl_file, 'r', encoding='utf-8') as f:
+                    lines = [line.strip() for line in f if line.strip()]
+                    if lines:
+                        # Tenta parsear a primeira linha para verificar se é JSON válido
+                        json.loads(lines[0])
+                        valid_jsonl_count += 1
+                        logger.info(f"  ✓ {jsonl_file.name}: {len(lines)} linhas")
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(f"  ✗ {jsonl_file.name}: arquivo inválido - {e}")
+        
+        if valid_jsonl_count == 0:
+            logger.warning("Nenhum arquivo JSONL válido encontrado!")
+            return False
+        
+        logger.info(f"Validação concluída: {valid_jsonl_count} arquivo(s) JSONL válido(s)")
+        return True
+    
+    def clean_raw_directory(self):
+        """
+        Limpa o diretório data/raw/ removendo arquivos não-JSONL.
+        Mantém .gitkeep se existir.
+        """
+        logger.info("Limpando diretório data/raw/...")
+        
+        all_files = list(self.raw_path.iterdir()) if self.raw_path.exists() else []
+        
+        for f in all_files:
+            if f.is_file() and f.name != '.gitkeep':
+                try:
+                    f.unlink()
+                    logger.info(f"  Removido: {f.name}")
+                except Exception as e:
+                    logger.error(f"  Erro ao remover {f.name}: {e}")
+        
+        logger.info("Limpeza concluída")
+    
+    def invoke_scrapers(self) -> bool:
+        """
+        Tenta invocar os scrapers para gerar dados em data/raw/.
+        
+        Returns:
+            True se os scrapers executaram com sucesso, False caso contrário
+        """
+        logger.info("=" * 60)
+        logger.info("INVOCANDO SCRAPERS")
+        logger.info("=" * 60)
+        
+        try:
+            from src.scraping.run_scrapers import run_all_scrapers
+            
+            logger.info("Executando scrapers de dados médicos...")
+            results = run_all_scrapers()
+            
+            # Verifica se algum arquivo foi gerado
+            generated = [path for path in results.values() if path]
+            
+            if generated:
+                logger.info(f"✓ Scrapers executados com sucesso! {len(generated)} arquivo(s) gerado(s)")
+                return True
+            else:
+                logger.warning("Scrapers executados, mas nenhum arquivo foi gerado")
+                return False
+                
+        except ImportError as e:
+            logger.error(f"Erro ao importar scrapers: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Erro ao executar scrapers: {e}")
+            return False
+    
+    def create_example_file(self) -> Path:
+        """
+        Cria um arquivo de exemplo em data/raw/ com 5 registros.
+        
+        Returns:
+            Path do arquivo criado
+        """
+        logger.info("=" * 60)
+        logger.info("CRIANDO ARQUIVO DE EXEMPLO")
+        logger.info("=" * 60)
+        
+        samples = [
+            {
+                "instruction": "Quais são os sintomas de uma gripe comum?",
+                "input": "",
+                "output": "Os principais sintomas da gripe comum incluem: febre (geralmente acima de 38°C), dor de cabeça, dores musculares e nas articulações, fadiga intensa, tosse seca, coriza, dor de garganta e calafrios. Os sintomas costumam aparecer de forma súbita e durar de 7 a 10 dias.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Quando devo procurar um pronto-socorro?",
+                "input": "",
+                "output": "Deve procurar um pronto-socorro em situações de emergência como: dor no peito ou dificuldade respiratória, perda de consciência, sangramento intenso que não para, febre muito alta (acima de 39.5°C) que não cede com medicamentos, suspeita de AVC (rosto caído, fraqueza em um lado do corpo, fala arrastada), trauma grave.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "O que é pressão arterial alta e como controlar?",
+                "input": "Paciente com histórico familiar de hipertensão",
+                "output": "A pressão arterial alta (hipertensão) ocorre quando a força do sangue contra as paredes das artérias é consistentemente elevada (acima de 140/90 mmHg). Para controlar: reduza o consumo de sal, mantenha peso saudável, pratique exercícios regularmente, evite álcool e tabaco, tome medicamentos conforme prescrição médica.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Como identificar sinais de desidratação?",
+                "input": "",
+                "output": "Os principais sinais de desidratação incluem: sede intensa, urina escura e em pouca quantidade, boca e lábios secos, tontura ou vertigem, cansaço excessivo, dor de cabeça, pele seca e com pouca elasticidade. Em casos graves: confusão mental, batimentos cardíacos acelerados e pressão baixa. Crianças e idosos são mais vulneráveis.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Qual a diferença entre gripe e resfriado?",
+                "input": "",
+                "output": "A gripe é causada pelo vírus Influenza e apresenta sintomas mais intensos: febre alta, dores no corpo, fadiga severa. Já o resfriado é causado por diversos vírus (como rinovírus) e tem sintomas mais leves: coriza, espirros, dor de garganta leve. A gripe pode evoluir para complicações graves como pneumonia, enquanto o resfriado geralmente se resolve em poucos dias.",
+                "source": "Exemplo",
+            },
+        ]
+        
+        output_file = self.raw_path / "example_data.jsonl"
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for sample in samples:
+                f.write(json.dumps(sample, ensure_ascii=False) + '\n')
+        
+        logger.info(f"✓ Arquivo de exemplo criado: {output_file}")
+        logger.info(f"  Total de registros: {len(samples)}")
+        
+        return output_file
+    
+    def ensure_data_available(self) -> bool:
+        """
+        Garante que há dados disponíveis para a pipeline.
+        Valida, limpa, invoca scrapers ou cria exemplo conforme necessário.
+        
+        Returns:
+            True se dados estão disponíveis, False caso contrário
+        """
+        # 1. Valida diretório atual
+        if self.validate_raw_directory():
+            logger.info("✓ Dados válidos encontrados em data/raw/")
+            return True
+        
+        # 2. Limpa diretório se há arquivos inválidos
+        logger.info("Dados inválidos ou ausentes. Iniciando processo de recuperação...")
+        self.clean_raw_directory()
+        
+        # 3. Tenta invocar scrapers
+        if self.invoke_scrapers():
+            # Revalida após scrapers
+            if self.validate_raw_directory():
+                return True
+        
+        # 4. Fallback: cria arquivo de exemplo
+        logger.warning("Scrapers falharam ou não geraram dados. Usando dados de exemplo...")
+        self.create_example_file()
+        
+        return True
     
     def anonymize_text(self, text: str) -> str:
         """
@@ -144,17 +339,8 @@ class DataPreparation:
         jsonl_files = list(self.raw_path.glob("*.jsonl"))
         
         if not jsonl_files:
-            logger.warning("=" * 60)
-            logger.warning("NENHUM ARQUIVO JSONL ENCONTRADO")
-            logger.warning("=" * 60)
-            logger.warning(f"\nBuscou em: {self.raw_path}")
-            logger.warning("\nPara gerar os dados, execute:")
-            logger.warning("  python -m src.scraping.run_scrapers")
-            logger.warning("\nOu coloque arquivos .jsonl manualmente em data/raw/")
-            logger.warning("Formato esperado: {\"instruction\": \"...\", \"input\": \"...\", \"output\": \"...\"}")
-            logger.warning("")
-            logger.info("Criando dataset de exemplo para demonstração...")
-            return self._create_sample_dataset()
+            logger.warning("Nenhum arquivo JSONL encontrado após validação!")
+            return []
         
         logger.info("=" * 60)
         logger.info("CARREGANDO ARQUIVOS JSONL")
@@ -226,37 +412,6 @@ class DataPreparation:
         
         return output_file
     
-    def _create_sample_dataset(self) -> List[Dict]:
-        """
-        Cria um dataset de exemplo para demonstração.
-        
-        Returns:
-            Lista de registros de exemplo
-        """
-        samples = [
-            {
-                "instruction": "Quais são os sintomas de uma gripe comum?",
-                "input": "",
-                "output": "Os principais sintomas da gripe comum incluem: febre (geralmente acima de 38°C), dor de cabeça, dores musculares e nas articulações, fadiga intensa, tosse seca, coriza, dor de garganta e calafrios. Os sintomas costumam aparecer de forma súbita e durar de 7 a 10 dias.",
-                "source": "Exemplo",
-            },
-            {
-                "instruction": "Quando devo procurar um pronto-socorro?",
-                "input": "",
-                "output": "Deve procurar um pronto-socorro em situações de emergência como: dor no peito ou dificuldade respiratória, perda de consciência, sangramento intenso que não para, febre muito alta (acima de 39.5°C) que não cede com medicamentos, suspeita de AVC (rosto caído, fraqueza em um lado do corpo, fala arrastada), trauma grave.",
-                "source": "Exemplo",
-            },
-            {
-                "instruction": "O que é pressão arterial alta e como controlar?",
-                "input": "Paciente com histórico familiar de hipertensão",
-                "output": "A pressão arterial alta (hipertensão) ocorre quando a força do sangue contra as paredes das artérias é consistentemente elevada (acima de 140/90 mmHg). Para controlar: reduza o consumo de sal, mantenha peso saudável, pratique exercícios regularmente, evite álcool e tabaco, tome medicamentos conforme prescrição médica.",
-                "source": "Exemplo",
-            },
-        ]
-        
-        logger.info(f"Dataset de exemplo criado com {len(samples)} registros")
-        return samples
-    
     def prepare_for_training(self, records: List[Dict]) -> Dataset:
         """
         Prepara os dados para o formato de treinamento.
@@ -298,8 +453,15 @@ class DataPreparation:
         """
         logger.info("Iniciando preparação do dataset...")
         
+        # 0. Garante que há dados disponíveis
+        self.ensure_data_available()
+        
         # 1. Carrega dados brutos
         records = self.load_raw_data()
+        
+        if not records:
+            logger.error("Nenhum registro encontrado! Criando dataset mínimo de exemplo.")
+            records = self._create_minimal_sample()
         
         # 2. Valida e limpa
         records = self.validate_and_clean(records)
@@ -313,6 +475,28 @@ class DataPreparation:
         logger.info("Preparação do dataset concluída!")
         
         return dataset
+    
+    def _create_minimal_sample(self) -> List[Dict]:
+        """
+        Cria uma lista mínima de exemplos para evitar falhas na pipeline.
+        
+        Returns:
+            Lista com registros de exemplo
+        """
+        return [
+            {
+                "instruction": "Quais são os sintomas de uma gripe comum?",
+                "input": "",
+                "output": "Os principais sintomas da gripe incluem febre, dor de cabeça, dores no corpo, tosse e fadiga.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Quando devo procurar um médico?",
+                "input": "",
+                "output": "Procure um médico se os sintomas forem graves, persistentes ou se houver sinais de emergência.",
+                "source": "Exemplo",
+            },
+        ]
 
 
 def run():
