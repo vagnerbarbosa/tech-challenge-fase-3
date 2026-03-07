@@ -86,8 +86,143 @@ projeto_fase3/
 - CUDA 11.8+ (para GPU - recomendado)
 - 16GB+ RAM
 - Conta no Hugging Face (para acesso aos modelos)
+- Git (recomendado: Git for Windows com Git Bash)
 
-### Passos
+---
+
+## 🪟 Instalação no Windows (Passo a Passo)
+
+### 1️⃣ Clone o repositório
+
+```bash
+git clone https://github.com/vagnerbarbosa/tech-challenge-fase-3.git
+cd tech-challenge-fase-3
+```
+
+### 2️⃣ Crie um ambiente virtual
+
+**Opção A - PowerShell ou CMD:**
+```powershell
+python -m venv venv
+```
+
+**Opção B - Git Bash:**
+```bash
+python -m venv venv
+```
+
+### 3️⃣ Ative o ambiente virtual
+
+**⚠️ IMPORTANTE:** Escolha o comando correto de acordo com o terminal que você está usando:
+
+| Terminal | Comando de Ativação |
+|----------|---------------------|
+| **PowerShell** | `.\venv\Scripts\Activate.ps1` |
+| **CMD (Prompt de Comando)** | `venv\Scripts\activate.bat` |
+| **Git Bash / MINGW64** | `source venv/Scripts/activate` |
+
+**Exemplo no PowerShell:**
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+**Exemplo no CMD:**
+```cmd
+venv\Scripts\activate.bat
+```
+
+**Exemplo no Git Bash:**
+```bash
+source venv/Scripts/activate
+```
+
+> 💡 **Dica:** Após ativar, você verá `(venv)` no início da linha do terminal, indicando que o ambiente virtual está ativo.
+
+> ⚠️ **Problema com PowerShell?** Se receber erro de "Execution Policy", execute primeiro:
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+
+### 4️⃣ Instale as dependências
+
+Com o ambiente virtual ativado, execute:
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+> 💡 **Dica:** Se encontrar erros durante a instalação, tente instalar as dependências principais primeiro:
+> ```bash
+> pip install torch transformers langchain huggingface_hub
+> pip install -r requirements.txt
+> ```
+
+### 5️⃣ Configure as variáveis de ambiente
+
+**Opção A - Copiar e editar o arquivo .env:**
+
+**No PowerShell:**
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+**No CMD:**
+```cmd
+copy .env.example .env
+notepad .env
+```
+
+**No Git Bash:**
+```bash
+cp .env.example .env
+notepad .env
+```
+
+**Opção B - Editar manualmente:**
+
+Abra o arquivo `.env` em um editor de texto (VS Code, Notepad++, etc.) e configure:
+
+```env
+# Seu token do Hugging Face (obtenha em https://huggingface.co/settings/tokens)
+HUGGINGFACE_TOKEN=hf_seu_token_aqui
+
+# Modelo base
+BASE_MODEL_NAME=meta-llama/Llama-2-7b-chat-hf
+
+# Configurações de caminhos
+MODEL_PATH=./models
+DATA_PATH=./data
+LOG_PATH=./logs
+
+# Outras configurações (ajuste conforme necessário)
+MAX_SEQ_LENGTH=512
+BATCH_SIZE=4
+LEARNING_RATE=2e-4
+NUM_EPOCHS=3
+LOG_LEVEL=INFO
+```
+
+### 6️⃣ Faça login no Hugging Face
+
+**✅ Comando CORRETO:**
+```bash
+huggingface-cli login
+```
+
+O terminal solicitará seu token. Cole o token obtido em [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) e pressione Enter.
+
+> ⚠️ **IMPORTANTE:** O comando antigo `python -m huggingface_hub.commands.huggingface_cli login` **NÃO funciona** mais em versões recentes do `huggingface_hub`. Use sempre `huggingface-cli login`.
+
+> 💡 **Alternativa com token direto:**
+> ```bash
+> huggingface-cli login --token hf_seu_token_aqui
+> ```
+
+---
+
+## 🐧 Instalação no Linux/Mac
 
 1. **Clone o repositório**
 ```bash
@@ -95,29 +230,30 @@ git clone https://github.com/vagnerbarbosa/tech-challenge-fase-3.git
 cd tech-challenge-fase-3
 ```
 
-2. **Crie um ambiente virtual**
+2. **Crie e ative o ambiente virtual**
 ```bash
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
+source venv/bin/activate
 ```
 
 3. **Instale as dependências**
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
 4. **Configure as variáveis de ambiente**
 ```bash
 cp .env.example .env
-# Edite o arquivo .env com suas credenciais
+nano .env  # ou use seu editor preferido
 ```
 
 5. **Faça login no Hugging Face**
 ```bash
 huggingface-cli login
 ```
+
+---
 
 ## 💻 Como Executar
 
@@ -146,6 +282,43 @@ python -m src.langchain_integration.assistant
 ```bash
 pytest tests/ -v
 ```
+
+---
+
+## ❓ Solução de Problemas Comuns (Windows)
+
+### Erro: "huggingface_hub.commands não encontrado"
+**Problema:** Usando comando obsoleto para login.
+**Solução:** Use `huggingface-cli login` em vez de `python -m huggingface_hub.commands.huggingface_cli login`
+
+### Erro: "Execution Policy" no PowerShell
+**Problema:** PowerShell bloqueia a execução de scripts.
+**Solução:**
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Erro: "python não é reconhecido"
+**Problema:** Python não está no PATH do sistema.
+**Solução:** 
+- Reinstale o Python marcando a opção "Add Python to PATH"
+- Ou use `py` em vez de `python`:
+```bash
+py -m venv venv
+```
+
+### Erro ao instalar torch/PyTorch
+**Solução:** Instale o PyTorch separadamente antes das outras dependências:
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+(Substitua `cu118` pela sua versão do CUDA, ou use `cpu` se não tiver GPU)
+
+### Erro: "No module named 'src'"
+**Problema:** O Python não está encontrando os módulos do projeto.
+**Solução:** Execute os comandos a partir da raiz do projeto (onde está o `main.py`)
+
+---
 
 ## 🛠️ Tecnologias Utilizadas
 
