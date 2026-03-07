@@ -6,18 +6,18 @@ Fornece funcionalidades comuns para todos os scrapers:
 - Gerenciamento de sessões HTTP
 - Headers e delays para boas práticas
 - Tratamento de erros
-- Salvamento de dados em CSV
+- Salvamento de dados em JSONL (formato para fine-tuning)
 """
 
 import os
 import time
 import random
+import json
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 
 from src.utils.logging_config import get_logger
 
@@ -28,6 +28,7 @@ class BaseScraper(ABC):
     """
     Classe base abstrata para scrapers de dados médicos.
     Implementa padrões comuns e boas práticas de web scraping.
+    Gera dados diretamente em formato JSONL para fine-tuning.
     """
     
     # Headers para simular navegador real
@@ -56,12 +57,12 @@ class BaseScraper(ABC):
         Inicializa o scraper base.
         
         Args:
-            output_path: Caminho para salvar CSVs. Default: ./data/processed
+            output_path: Caminho para salvar JSONL. Default: ./data/raw
             timeout: Timeout para requisições em segundos
             max_retries: Número máximo de tentativas por requisição
             max_items: Número máximo de itens a coletar. None = sem limite
         """
-        self.output_path = Path(output_path or os.getenv("DATA_PATH", "./data")) / "processed"
+        self.output_path = Path(output_path or os.getenv("DATA_PATH", "./data")) / "raw"
         self.output_path.mkdir(parents=True, exist_ok=True)
         self.timeout = timeout
         self.max_retries = max_retries
@@ -157,19 +158,25 @@ class BaseScraper(ABC):
             return data[:self.max_items]
         return data
     
-    def _save_to_csv(
+    def _save_to_jsonl(
         self,
         data: List[Dict[str, Any]],
         filename: str,
-        columns: Optional[List[str]] = None,
+        source: str,
     ) -> Path:
         """
-        Salva dados em arquivo CSV.
+        Salva dados em arquivo JSONL no formato para fine-tuning.
+        
+        Cada registro é transformado para ter os campos:
+        - instruction: a pergunta/instrução
+        - input: contexto adicional (opcional)
+        - output: a resposta esperada
+        - source: fonte dos dados
         
         Args:
             data: Lista de dicionários com os dados
             filename: Nome do arquivo (sem extensão)
-            columns: Ordem das colunas (opcional)
+            source: Fonte dos dados (ex: "TelessaúdeRS", "CONITEC/MS")
             
         Returns:
             Path do arquivo salvo
@@ -178,13 +185,18 @@ class BaseScraper(ABC):
             logger.warning(f"Nenhum dado para salvar em {filename}")
             return None
         
-        df = pd.DataFrame(data)
+        filepath = self.output_path / f"{filename}.jsonl"
         
-        if columns:
-            df = df[columns]
-        
-        filepath = self.output_path / f"{filename}.csv"
-        df.to_csv(filepath, index=False, encoding="utf-8-sig")
+        with open(filepath, 'w', encoding='utf-8') as f:
+            for record in data:
+                # Garante que os campos obrigatórios existam
+                jsonl_record = {
+                    'instruction': record.get('instruction', ''),
+                    'input': record.get('input', ''),
+                    'output': record.get('output', ''),
+                    'source': source,
+                }
+                f.write(json.dumps(jsonl_record, ensure_ascii=False) + '\n')
         
         logger.info(f"Dados salvos em {filepath} ({len(data)} registros)")
         return filepath

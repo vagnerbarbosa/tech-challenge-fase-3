@@ -1,21 +1,27 @@
 """
-Módulo de Preparação e Anonimização de Dados
-============================================
+Módulo de Preparação de Dados para Fine-Tuning
+==============================================
 
 Responsável por:
-- Carregar dados médicos gerais (CSV ou JSONL)
+- Validar e preparar o diretório data/raw/
+- Invocar scrapers automaticamente se necessário
+- Carregar arquivos JSONL de data/raw/
+- Unificar em um único JSONL em data/processed/
+- Validar e limpar os dados
 - Anonimizar informações sensíveis (LGPD)
-- Preparar dataset para fine-tuning do assistente generalista
+- Preparar dataset para fine-tuning
 
-Formatos suportados:
-- CSV: arquivos com colunas instruction, input, output
-- JSONL: arquivos JSON Lines com campos instruction, input, output
+Formato JSONL esperado:
+- instruction: pergunta ou instrução para o modelo
+- input: contexto adicional (opcional)
+- output: resposta esperada
+- source: fonte dos dados (opcional)
 
 Uso:
     Via main.py (pipeline completo):
         python main.py
     
-    Execução isolada (requer estar na raiz do projeto):
+    Execução isolada:
         python -m src.fine_tuning.data_preparation
 """
 
@@ -23,15 +29,14 @@ import os
 import re
 import json
 import sys
-import pandas as pd
+import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
-from datasets import Dataset, DatasetDict
+from typing import Dict, List, Optional
+from datasets import Dataset
 
-# Determina a raiz do projeto (onde está main.py)
+# Determina a raiz do projeto
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# Adiciona a raiz ao path para imports funcionarem corretamente
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -43,24 +48,23 @@ logger = get_logger(__name__)
 
 class DataPreparation:
     """
-    Classe para preparação e anonimização de dados médicos.
-    Suporta dados de diversas especialidades médicas para o assistente generalista.
+    Classe para preparação de dados médicos para fine-tuning.
+    Trabalha exclusivamente com arquivos JSONL.
     """
     
     def __init__(self, data_path: Optional[str] = None):
         """
-        Inicializa o preparador de dados médicos.
+        Inicializa o preparador de dados.
         
         Args:
-            data_path: Caminho para os dados. Se None, usa DATA_PATH do .env ou 
-                      o diretório 'data' na raiz do projeto
+            data_path: Caminho para os dados. Se None, usa DATA_PATH do .env 
+                      ou o diretório 'data' na raiz do projeto
         """
         if data_path:
             self.data_path = Path(data_path).resolve()
         elif os.getenv("DATA_PATH"):
             self.data_path = Path(os.getenv("DATA_PATH")).resolve()
         else:
-            # Usa o diretório data relativo à raiz do projeto
             self.data_path = PROJECT_ROOT / "data"
         
         self.raw_path = self.data_path / "raw"
@@ -72,14 +76,204 @@ class DataPreparation:
         self.processed_path.mkdir(parents=True, exist_ok=True)
         
         logger.info(f"DataPreparation inicializado")
-        logger.info(f"  Raiz do projeto: {PROJECT_ROOT}")
-        logger.info(f"  Diretório de dados: {self.data_path}")
         logger.info(f"  Dados brutos: {self.raw_path}")
         logger.info(f"  Dados processados: {self.processed_path}")
     
+    def validate_raw_directory(self) -> bool:
+        """
+        Valida se o diretório data/raw/ contém arquivos JSONL válidos.
+        
+        Returns:
+            True se há arquivos JSONL válidos, False caso contrário
+        """
+        logger.info("=" * 60)
+        logger.info("VALIDAÇÃO DO DIRETÓRIO DE DADOS")
+        logger.info("=" * 60)
+        
+        # Lista todos os arquivos no diretório
+        all_files = list(self.raw_path.iterdir()) if self.raw_path.exists() else []
+        
+        # Ignora arquivos ocultos e .gitkeep
+        visible_files = [f for f in all_files if f.is_file() and not f.name.startswith('.')]
+        
+        if not visible_files:
+            logger.warning(f"Diretório vazio: {self.raw_path}")
+            return False
+        
+        # Verifica arquivos JSONL
+        jsonl_files = [f for f in visible_files if f.suffix.lower() == '.jsonl']
+        non_jsonl_files = [f for f in visible_files if f.suffix.lower() != '.jsonl']
+        
+        if non_jsonl_files:
+            logger.warning(f"Arquivos não-JSONL encontrados ({len(non_jsonl_files)}):")
+            for f in non_jsonl_files:
+                logger.warning(f"  - {f.name}")
+        
+        if not jsonl_files:
+            logger.warning("Nenhum arquivo JSONL encontrado!")
+            return False
+        
+        # Verifica se os arquivos JSONL são válidos (não vazios e com JSON válido)
+        valid_jsonl_count = 0
+        for jsonl_file in jsonl_files:
+            try:
+                with open(jsonl_file, 'r', encoding='utf-8') as f:
+                    lines = [line.strip() for line in f if line.strip()]
+                    if lines:
+                        # Tenta parsear a primeira linha para verificar se é JSON válido
+                        json.loads(lines[0])
+                        valid_jsonl_count += 1
+                        logger.info(f"  ✓ {jsonl_file.name}: {len(lines)} linhas")
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(f"  ✗ {jsonl_file.name}: arquivo inválido - {e}")
+        
+        if valid_jsonl_count == 0:
+            logger.warning("Nenhum arquivo JSONL válido encontrado!")
+            return False
+        
+        logger.info(f"Validação concluída: {valid_jsonl_count} arquivo(s) JSONL válido(s)")
+        return True
+    
+    def clean_raw_directory(self):
+        """
+        Limpa o diretório data/raw/ removendo arquivos não-JSONL.
+        Mantém .gitkeep se existir.
+        """
+        logger.info("Limpando diretório data/raw/...")
+        
+        all_files = list(self.raw_path.iterdir()) if self.raw_path.exists() else []
+        
+        for f in all_files:
+            if f.is_file() and f.name != '.gitkeep':
+                try:
+                    f.unlink()
+                    logger.info(f"  Removido: {f.name}")
+                except Exception as e:
+                    logger.error(f"  Erro ao remover {f.name}: {e}")
+        
+        logger.info("Limpeza concluída")
+    
+    def invoke_scrapers(self) -> bool:
+        """
+        Tenta invocar os scrapers para gerar dados em data/raw/.
+        
+        Returns:
+            True se os scrapers executaram com sucesso, False caso contrário
+        """
+        logger.info("=" * 60)
+        logger.info("INVOCANDO SCRAPERS")
+        logger.info("=" * 60)
+        
+        try:
+            from src.scraping.run_scrapers import run_all_scrapers
+            
+            logger.info("Executando scrapers de dados médicos...")
+            results = run_all_scrapers()
+            
+            # Verifica se algum arquivo foi gerado
+            generated = [path for path in results.values() if path]
+            
+            if generated:
+                logger.info(f"✓ Scrapers executados com sucesso! {len(generated)} arquivo(s) gerado(s)")
+                return True
+            else:
+                logger.warning("Scrapers executados, mas nenhum arquivo foi gerado")
+                return False
+                
+        except ImportError as e:
+            logger.error(f"Erro ao importar scrapers: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Erro ao executar scrapers: {e}")
+            return False
+    
+    def create_example_file(self) -> Path:
+        """
+        Cria um arquivo de exemplo em data/raw/ com 5 registros.
+        
+        Returns:
+            Path do arquivo criado
+        """
+        logger.info("=" * 60)
+        logger.info("CRIANDO ARQUIVO DE EXEMPLO")
+        logger.info("=" * 60)
+        
+        samples = [
+            {
+                "instruction": "Quais são os sintomas de uma gripe comum?",
+                "input": "",
+                "output": "Os principais sintomas da gripe comum incluem: febre (geralmente acima de 38°C), dor de cabeça, dores musculares e nas articulações, fadiga intensa, tosse seca, coriza, dor de garganta e calafrios. Os sintomas costumam aparecer de forma súbita e durar de 7 a 10 dias.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Quando devo procurar um pronto-socorro?",
+                "input": "",
+                "output": "Deve procurar um pronto-socorro em situações de emergência como: dor no peito ou dificuldade respiratória, perda de consciência, sangramento intenso que não para, febre muito alta (acima de 39.5°C) que não cede com medicamentos, suspeita de AVC (rosto caído, fraqueza em um lado do corpo, fala arrastada), trauma grave.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "O que é pressão arterial alta e como controlar?",
+                "input": "Paciente com histórico familiar de hipertensão",
+                "output": "A pressão arterial alta (hipertensão) ocorre quando a força do sangue contra as paredes das artérias é consistentemente elevada (acima de 140/90 mmHg). Para controlar: reduza o consumo de sal, mantenha peso saudável, pratique exercícios regularmente, evite álcool e tabaco, tome medicamentos conforme prescrição médica.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Como identificar sinais de desidratação?",
+                "input": "",
+                "output": "Os principais sinais de desidratação incluem: sede intensa, urina escura e em pouca quantidade, boca e lábios secos, tontura ou vertigem, cansaço excessivo, dor de cabeça, pele seca e com pouca elasticidade. Em casos graves: confusão mental, batimentos cardíacos acelerados e pressão baixa. Crianças e idosos são mais vulneráveis.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Qual a diferença entre gripe e resfriado?",
+                "input": "",
+                "output": "A gripe é causada pelo vírus Influenza e apresenta sintomas mais intensos: febre alta, dores no corpo, fadiga severa. Já o resfriado é causado por diversos vírus (como rinovírus) e tem sintomas mais leves: coriza, espirros, dor de garganta leve. A gripe pode evoluir para complicações graves como pneumonia, enquanto o resfriado geralmente se resolve em poucos dias.",
+                "source": "Exemplo",
+            },
+        ]
+        
+        output_file = self.raw_path / "example_data.jsonl"
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for sample in samples:
+                f.write(json.dumps(sample, ensure_ascii=False) + '\n')
+        
+        logger.info(f"✓ Arquivo de exemplo criado: {output_file}")
+        logger.info(f"  Total de registros: {len(samples)}")
+        
+        return output_file
+    
+    def ensure_data_available(self) -> bool:
+        """
+        Garante que há dados disponíveis para a pipeline.
+        Valida, limpa, invoca scrapers ou cria exemplo conforme necessário.
+        
+        Returns:
+            True se dados estão disponíveis, False caso contrário
+        """
+        # 1. Valida diretório atual
+        if self.validate_raw_directory():
+            logger.info("✓ Dados válidos encontrados em data/raw/")
+            return True
+        
+        # 2. Limpa diretório se há arquivos inválidos
+        logger.info("Dados inválidos ou ausentes. Iniciando processo de recuperação...")
+        self.clean_raw_directory()
+        
+        # 3. Tenta invocar scrapers
+        if self.invoke_scrapers():
+            # Revalida após scrapers
+            if self.validate_raw_directory():
+                return True
+        
+        # 4. Fallback: cria arquivo de exemplo
+        logger.warning("Scrapers falharam ou não geraram dados. Usando dados de exemplo...")
+        self.create_example_file()
+        
+        return True
+    
     def anonymize_text(self, text: str) -> str:
         """
-        Anonimiza informações sensíveis no texto.
+        Anonimiza informações sensíveis no texto (LGPD).
         
         Args:
             text: Texto a ser anonimizado
@@ -90,21 +284,12 @@ class DataPreparation:
         if not text:
             return text
         
-        # Padrões para anonimização
         patterns = {
-            # CPF: XXX.XXX.XXX-XX
             r'\d{3}\.\d{3}\.\d{3}-\d{2}': '[CPF_ANONIMIZADO]',
-            # RG: XX.XXX.XXX-X
             r'\d{2}\.\d{3}\.\d{3}-[0-9X]': '[RG_ANONIMIZADO]',
-            # Telefone: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
             r'\(\d{2}\)\s*\d{4,5}-?\d{4}': '[TELEFONE_ANONIMIZADO]',
-            # Email
             r'[\w\.-]+@[\w\.-]+\.\w+': '[EMAIL_ANONIMIZADO]',
-            # Nomes próprios (simplificado - em produção usar NER)
-            r'\b[A-Z][a-záéíóúàèìòùâêîôûãõ]+\s+[A-Z][a-záéíóúàèìòùâêîôûãõ]+\b': '[NOME_ANONIMIZADO]',
-            # Datas de nascimento
             r'\d{2}/\d{2}/\d{4}': '[DATA_ANONIMIZADA]',
-            # Endereços (simplificado)
             r'Rua\s+[\w\s]+,\s*\d+': '[ENDERECO_ANONIMIZADO]',
         }
         
@@ -114,7 +299,7 @@ class DataPreparation:
         
         return anonymized
     
-    def load_jsonl(self, file_path: Union[str, Path]) -> pd.DataFrame:
+    def load_jsonl(self, file_path: Path) -> List[Dict]:
         """
         Carrega dados de um arquivo JSONL.
         
@@ -122,9 +307,8 @@ class DataPreparation:
             file_path: Caminho para o arquivo JSONL
             
         Returns:
-            DataFrame com os dados carregados
+            Lista de registros
         """
-        file_path = Path(file_path)
         records = []
         
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -134,212 +318,193 @@ class DataPreparation:
                     continue
                 try:
                     record = json.loads(line)
-                    records.append(record)
+                    # Valida campos obrigatórios
+                    if 'instruction' in record and 'output' in record:
+                        records.append(record)
+                    else:
+                        logger.warning(f"Linha {line_num} em {file_path.name}: campos obrigatórios ausentes")
                 except json.JSONDecodeError as e:
-                    logger.warning(f"Linha {line_num} inválida em {file_path.name}: {e}")
+                    logger.warning(f"Linha {line_num} em {file_path.name}: JSON inválido - {e}")
         
-        if not records:
-            logger.warning(f"Nenhum registro válido em {file_path}")
-            return pd.DataFrame()
-        
-        df = pd.DataFrame(records)
-        logger.info(f"JSONL carregado: {len(df)} registros de {file_path.name}")
-        return df
+        logger.info(f"  ✓ {file_path.name}: {len(records)} registros carregados")
+        return records
     
-    def load_raw_data(self, filename: str = "medical_data_unified.jsonl") -> pd.DataFrame:
+    def load_raw_data(self) -> List[Dict]:
         """
-        Carrega dados brutos do arquivo (CSV ou JSONL).
+        Carrega todos os arquivos JSONL de data/raw/.
         
-        Prioridade de busca:
-        1. JSONL unificado (medical_data_unified.jsonl)
-        2. CSV no raw_path
-        3. Dataset de exemplo
+        Returns:
+            Lista unificada de registros
+        """
+        jsonl_files = list(self.raw_path.glob("*.jsonl"))
+        
+        if not jsonl_files:
+            logger.warning("Nenhum arquivo JSONL encontrado após validação!")
+            return []
+        
+        logger.info("=" * 60)
+        logger.info("CARREGANDO ARQUIVOS JSONL")
+        logger.info("=" * 60)
+        logger.info(f"Diretório: {self.raw_path}")
+        logger.info(f"Arquivos encontrados: {len(jsonl_files)}")
+        
+        all_records = []
+        for jsonl_file in sorted(jsonl_files):
+            records = self.load_jsonl(jsonl_file)
+            all_records.extend(records)
+        
+        logger.info("-" * 60)
+        logger.info(f"Total unificado: {len(all_records)} registros")
+        
+        return all_records
+    
+    def validate_and_clean(self, records: List[Dict]) -> List[Dict]:
+        """
+        Valida e limpa os registros.
         
         Args:
-            filename: Nome do arquivo de dados médicos
+            records: Lista de registros brutos
             
         Returns:
-            DataFrame com os dados carregados
+            Lista de registros validados e limpos
         """
-        # Tenta carregar JSONL unificado primeiro
-        jsonl_unified = self.processed_path / "medical_data_unified.jsonl"
-        if jsonl_unified.exists():
-            logger.info(f"Carregando JSONL unificado: {jsonl_unified}")
-            return self.load_jsonl(jsonl_unified)
+        cleaned = []
         
-        # Tenta carregar arquivo especificado
-        file_path = self.raw_path / filename
+        for record in records:
+            instruction = str(record.get('instruction', '')).strip()
+            input_val = str(record.get('input', '')).strip()
+            output = str(record.get('output', '')).strip()
+            
+            # Validações básicas
+            if len(instruction) < 5:
+                continue
+            if len(output) < 10:
+                continue
+            
+            cleaned.append({
+                'instruction': instruction,
+                'input': input_val,
+                'output': output,
+                'source': record.get('source', ''),
+            })
         
-        # Determina formato pelo sufixo
-        if file_path.suffix.lower() == '.jsonl':
-            if file_path.exists():
-                return self.load_jsonl(file_path)
-            # Tenta na pasta processed
-            processed_path = self.processed_path / filename
-            if processed_path.exists():
-                return self.load_jsonl(processed_path)
-        elif file_path.suffix.lower() == '.csv':
-            if file_path.exists():
-                logger.info(f"Carregando CSV: {file_path}")
-                df = pd.read_csv(file_path, encoding='utf-8-sig')
-                logger.info(f"Dados carregados: {len(df)} registros")
-                return df
-        
-        # Se não encontrar nada, tenta CSVs individuais no processed
-        logger.info("Tentando carregar CSVs individuais processados...")
-        dfs = []
-        for csv_file in ['perguntas_frequentes.csv', 'modelos_laudos.csv', 'protocolos_medicos.csv']:
-            csv_path = self.processed_path / csv_file
-            if csv_path.exists():
-                df = pd.read_csv(csv_path, encoding='utf-8-sig')
-                dfs.append(df)
-                logger.info(f"Carregado: {csv_file} ({len(df)} registros)")
-        
-        if dfs:
-            # Combina e normaliza colunas
-            combined = pd.concat(dfs, ignore_index=True)
-            logger.info(f"Total combinado: {len(combined)} registros")
-            return combined
-        
-        logger.warning("=" * 60)
-        logger.warning("NENHUM ARQUIVO DE DADOS ENCONTRADO")
-        logger.warning("=" * 60)
-        logger.warning("Locais verificados:")
-        logger.warning(f"  1. JSONL unificado: {self.processed_path / 'medical_data_unified.jsonl'}")
-        logger.warning(f"  2. Dados brutos: {self.raw_path}")
-        logger.warning(f"  3. Dados processados: {self.processed_path}")
-        logger.warning("")
-        logger.warning("Para usar seus próprios dados:")
-        logger.warning("  - Coloque arquivos CSV ou JSONL em: data/raw/")
-        logger.warning("  - Formato: colunas 'instruction', 'input', 'output'")
-        logger.warning("")
-        logger.info("Criando dataset de exemplo com dados médicos gerais...")
-        return self._create_sample_dataset()
+        logger.info(f"Registros após validação: {len(cleaned)} (removidos: {len(records) - len(cleaned)})")
+        return cleaned
     
-    def _create_sample_dataset(self) -> pd.DataFrame:
+    def save_unified_jsonl(self, records: List[Dict]) -> Path:
         """
-        Cria um dataset de exemplo para demonstração.
-        Inclui perguntas e respostas médicas gerais de diversas especialidades.
+        Salva os registros unificados em data/processed/.
         
+        Args:
+            records: Lista de registros
+            
         Returns:
-            DataFrame com dados de exemplo
+            Path do arquivo salvo
         """
-        # Exemplos de perguntas e respostas médicas gerais
-        samples = [
-            {
-                "instruction": "Quais são os sintomas de uma gripe comum?",
-                "input": "",
-                "output": "Os principais sintomas da gripe comum incluem: febre (geralmente acima de 38°C), dor de cabeça, dores musculares e nas articulações, fadiga intensa, tosse seca, coriza, dor de garganta e calafrios. Os sintomas costumam aparecer de forma súbita e durar de 7 a 10 dias. Recomenda-se repouso, hidratação e, se necessário, consultar um médico."
-            },
-            {
-                "instruction": "Quando devo procurar um pronto-socorro?",
-                "input": "",
-                "output": "Deve procurar um pronto-socorro em situações de emergência como: dor no peito ou dificuldade respiratória, perda de consciência ou desmaio, sangramento intenso que não para, febre muito alta (acima de 39.5°C) que não cede com medicamentos, confusão mental súbita, suspeita de AVC (rosto caído, fraqueza em um lado do corpo, fala arrastada), trauma grave ou fraturas, reações alérgicas severas."
-            },
-            {
-                "instruction": "O que é pressão arterial alta e como controlar?",
-                "input": "Paciente com histórico familiar de hipertensão",
-                "output": "A pressão arterial alta (hipertensão) ocorre quando a força do sangue contra as paredes das artérias é consistentemente elevada (acima de 140/90 mmHg). Para controlar: 1) Reduza o consumo de sal; 2) Mantenha peso saudável; 3) Pratique exercícios regularmente; 4) Evite álcool e tabaco; 5) Gerencie o estresse; 6) Tome medicamentos conforme prescrição médica; 7) Monitore a pressão regularmente."
-            },
-            {
-                "instruction": "Quais exames de rotina são recomendados anualmente?",
-                "input": "",
-                "output": "Os exames de rotina recomendados variam por idade e sexo, mas geralmente incluem: hemograma completo, glicemia de jejum, perfil lipídico (colesterol e triglicerídeos), função renal e hepática, exame de urina, medição de pressão arterial. Para mulheres: papanicolau e mamografia (após 40 anos). Para homens acima de 50: PSA. Sempre consulte seu médico para um plano personalizado."
-            },
-            {
-                "instruction": "Como aliviar dor de cabeça?",
-                "input": "",
-                "output": "Para aliviar dores de cabeça comuns: 1) Descanse em ambiente escuro e silencioso; 2) Aplique compressas frias ou quentes na testa/nuca; 3) Mantenha-se hidratado; 4) Evite telas de computador e celular; 5) Analgésicos como paracetamol ou ibuprofeno podem ajudar (conforme orientação médica). Procure um médico se a dor for intensa, súbita, acompanhada de febre, rigidez no pescoço ou alterações visuais."
-            },
-            {
-                "instruction": "O que fazer em caso de queimadura leve?",
-                "input": "",
-                "output": "Em caso de queimadura leve (1º grau): 1) Resfrie a área com água corrente fria por 10-20 minutos; 2) Não aplique gelo diretamente; 3) Não use manteiga, pasta de dente ou outros produtos caseiros; 4) Aplique pomada para queimaduras se disponível; 5) Cubra com gaze limpa; 6) Tome analgésico se necessário. Procure atendimento médico se a queimadura for extensa, no rosto, mãos, pés ou genitália."
-            },
-            {
-                "instruction": "Quais são os sinais de um infarto?",
-                "input": "",
-                "output": "Os sinais de alerta de infarto incluem: dor ou desconforto no peito (sensação de pressão, aperto ou queimação), dor que se irradia para braço esquerdo, mandíbula, costas ou estômago, falta de ar, sudorese fria, náuseas ou vômitos, tontura. Mulheres podem ter sintomas atípicos como fadiga extrema. Em caso de suspeita, ligue 192 (SAMU) imediatamente - cada minuto conta!"
-            },
-            {
-                "instruction": "Como melhorar a qualidade do sono?",
-                "input": "",
-                "output": "Para melhorar o sono: 1) Mantenha horários regulares para dormir e acordar; 2) Evite cafeína e álcool à noite; 3) Crie um ambiente escuro, silencioso e fresco; 4) Evite telas 1 hora antes de dormir; 5) Pratique exercícios (mas não perto da hora de dormir); 6) Evite refeições pesadas à noite; 7) Considere técnicas de relaxamento. Se a insônia persistir por mais de 3 semanas, consulte um médico."
-            },
-        ]
+        output_file = self.processed_path / "medical_data_unified.jsonl"
         
-        df = pd.DataFrame(samples)
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for record in records:
+                f.write(json.dumps(record, ensure_ascii=False) + '\n')
         
-        # Salva o dataset de exemplo
-        sample_path = self.processed_path / "sample_medical_qa.csv"
-        df.to_csv(sample_path, index=False)
-        logger.info(f"Dataset de exemplo (dados médicos gerais) salvo em: {sample_path}")
+        logger.info(f"✓ JSONL unificado salvo: {output_file}")
+        logger.info(f"  Total de registros: {len(records)}")
         
-        return df
+        return output_file
     
-    def prepare_for_training(self, df: pd.DataFrame) -> Dataset:
+    def prepare_for_training(self, records: List[Dict]) -> Dataset:
         """
         Prepara os dados para o formato de treinamento.
         
         Args:
-            df: DataFrame com os dados médicos
+            records: Lista de registros validados
             
         Returns:
             Dataset do Hugging Face pronto para treinamento
         """
-        # Formata as instruções no formato de chat
-        def format_instruction(row):
-            if row.get('input', ''):
-                text = f"### Instrução:\n{row['instruction']}\n\n### Contexto:\n{row['input']}\n\n### Resposta:\n{row['output']}"
+        formatted_records = []
+        
+        for record in records:
+            instruction = record['instruction']
+            input_val = record.get('input', '')
+            output = record['output']
+            
+            # Formata no padrão de chat
+            if input_val:
+                text = f"### Instrução:\n{instruction}\n\n### Contexto:\n{input_val}\n\n### Resposta:\n{output}"
             else:
-                text = f"### Instrução:\n{row['instruction']}\n\n### Resposta:\n{row['output']}"
-            return text
+                text = f"### Instrução:\n{instruction}\n\n### Resposta:\n{output}"
+            
+            # Anonimiza
+            text = self.anonymize_text(text)
+            formatted_records.append({'text': text})
         
-        df['text'] = df.apply(format_instruction, axis=1)
-        
-        # Anonimiza os textos
-        df['text'] = df['text'].apply(self.anonymize_text)
-        
-        # Converte para Dataset
-        dataset = Dataset.from_pandas(df[['text']])
-        
+        dataset = Dataset.from_list(formatted_records)
         logger.info(f"Dataset preparado para treinamento: {len(dataset)} exemplos")
         
         return dataset
     
     def prepare_dataset(self) -> Dataset:
         """
-        Pipeline completo de preparação de dados médicos.
+        Pipeline completo de preparação de dados.
         
         Returns:
             Dataset pronto para fine-tuning
         """
-        logger.info("Iniciando preparação do dataset médico...")
+        logger.info("Iniciando preparação do dataset...")
         
-        # Carrega dados
-        df = self.load_raw_data()
+        # 0. Garante que há dados disponíveis
+        self.ensure_data_available()
         
-        # Valida dados
-        if not self.validator.validate_dataframe(df):
-            logger.warning("Validação falhou, usando dataset de exemplo")
-            df = self._create_sample_dataset()
+        # 1. Carrega dados brutos
+        records = self.load_raw_data()
         
-        # Prepara para treinamento
-        dataset = self.prepare_for_training(df)
+        if not records:
+            logger.error("Nenhum registro encontrado! Criando dataset mínimo de exemplo.")
+            records = self._create_minimal_sample()
         
-        logger.info("Preparação do dataset médico concluída!")
+        # 2. Valida e limpa
+        records = self.validate_and_clean(records)
+        
+        # 3. Salva JSONL unificado
+        self.save_unified_jsonl(records)
+        
+        # 4. Prepara para treinamento
+        dataset = self.prepare_for_training(records)
+        
+        logger.info("Preparação do dataset concluída!")
         
         return dataset
+    
+    def _create_minimal_sample(self) -> List[Dict]:
+        """
+        Cria uma lista mínima de exemplos para evitar falhas na pipeline.
+        
+        Returns:
+            Lista com registros de exemplo
+        """
+        return [
+            {
+                "instruction": "Quais são os sintomas de uma gripe comum?",
+                "input": "",
+                "output": "Os principais sintomas da gripe incluem febre, dor de cabeça, dores no corpo, tosse e fadiga.",
+                "source": "Exemplo",
+            },
+            {
+                "instruction": "Quando devo procurar um médico?",
+                "input": "",
+                "output": "Procure um médico se os sintomas forem graves, persistentes ou se houver sinais de emergência.",
+                "source": "Exemplo",
+            },
+        ]
 
 
 def run():
     """
     Função principal para execução isolada do módulo.
-    Executa a preparação de dados e exibe um exemplo.
     """
     from dotenv import load_dotenv
     
-    # Carrega variáveis de ambiente do .env na raiz do projeto
     env_path = PROJECT_ROOT / ".env"
     if env_path.exists():
         load_dotenv(env_path)

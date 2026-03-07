@@ -1,7 +1,11 @@
 """
-Módulo de processamento de dados para sanitização e conversão de formatos.
+Módulo de processamento de dados (OBSOLETO).
+
+Os processamentos de dados agora são realizados em:
+- src.fine_tuning.data_preparation: prepara dados JSONL para fine-tuning
+- src.scraping.*: scrapers que geram dados em formato JSONL
+
+Este módulo foi mantido por compatibilidade mas pode ser removido.
 """
 
-from .sanitize_data import DataSanitizer, sanitize_all_csvs
-
-__all__ = ['DataSanitizer', 'sanitize_all_csvs']
+__all__ = []
