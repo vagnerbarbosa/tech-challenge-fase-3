@@ -38,31 +38,44 @@ Desenvolver um assistente virtual médico generalista capaz de:
 
 ```
 projeto_fase3/
-├── data/                          # Datasets
-│   └── processed/                 # Dados processados (gerados via web scraping)
-├── notebooks/                     # Jupyter notebooks para experimentação
-├── src/
-│   ├── fine_tuning/              # Pipeline de fine-tuning
-│   │   ├── data_preparation.py   # Pré-processamento e anonimização
-│   │   ├── training.py           # Treinamento do modelo
-│   │   └── evaluation.py         # Avaliação do modelo
-│   ├── langchain_integration/    # Integração LangChain
-│   │   ├── assistant.py          # Assistente médico principal
-│   │   ├── chains.py             # Chains do LangChain
-│   │   └── tools.py              # Ferramentas customizadas
-│   ├── langgraph_flows/          # Fluxos automatizados
-│   │   └── medical_workflow.py   # Workflow médico
-│   └── utils/                    # Utilitários
-│       ├── logging_config.py     # Configuração de logs
-│       └── validators.py         # Validadores de segurança
-├── models/                        # Modelos treinados (não versionados)
-├── logs/                          # Logs do sistema
-├── tests/                         # Testes unitários
-├── .gitignore                     # Arquivos a ignorar
-├── .env.example                   # Exemplo de variáveis de ambiente
-├── requirements.txt               # Dependências Python
-├── README.md                      # Este arquivo
-└── main.py                        # Script principal
+├── data/                              # Datasets
+│   ├── raw/                           # Dados brutos (não versionados)
+│   │   └── .gitkeep
+│   └── processed/                     # Dados processados e anonimizados
+│       └── .gitkeep
+├── logs/                              # Logs do sistema (não versionados)
+│   └── .gitkeep
+├── models/                            # Modelos treinados (não versionados)
+│   └── .gitkeep
+├── notebooks/                         # Jupyter notebooks para experimentação
+│   └── .gitkeep
+├── src/                               # Código fonte principal
+│   ├── __init__.py                    # Inicializador do pacote src
+│   ├── fine_tuning/                   # Pipeline de fine-tuning do LLM
+│   │   ├── __init__.py                # Exports: DataPreparation, ModelTrainer, ModelEvaluator
+│   │   ├── data_preparation.py        # Pré-processamento e anonimização de dados médicos
+│   │   ├── training.py                # Treinamento do modelo com LoRA/PEFT
+│   │   └── evaluation.py              # Avaliação de qualidade do modelo
+│   ├── langchain_integration/         # Integração com LangChain
+│   │   ├── __init__.py                # Exports: MedicalAssistant, MedicalChains, MedicalTools
+│   │   ├── assistant.py               # Assistente médico principal
+│   │   ├── chains.py                  # Chains de Q&A médico
+│   │   └── tools.py                   # Ferramentas: emergência, temperatura, especialidades
+│   ├── langgraph_flows/               # Fluxos automatizados com LangGraph
+│   │   ├── __init__.py                # Exports: MedicalWorkflow
+│   │   └── medical_workflow.py        # Workflow de conversação médica
+│   └── utils/                         # Utilitários do projeto
+│       ├── __init__.py                # Exports: setup_logging, get_logger, DataValidator, InputValidator
+│       ├── logging_config.py          # Configuração centralizada de logs
+│       └── validators.py              # Validadores de entrada e dados
+├── tests/                             # Testes unitários
+│   ├── __init__.py                    # Inicializador do pacote de testes
+│   └── test_validators.py             # Testes para InputValidator e DataValidator
+├── .env.example                       # Exemplo de variáveis de ambiente
+├── .gitignore                         # Arquivos e pastas ignorados pelo Git
+├── main.py                            # Script principal - ponto de entrada da aplicação
+├── README.md                          # Documentação do projeto
+└── requirements.txt                   # Dependências Python do projeto
 ```
 
 ## 🚀 Instalação
@@ -106,20 +119,6 @@ cp .env.example .env
 huggingface-cli login
 ```
 
-6. **Gere os dados iniciais (Web Scraping)**
-```bash
-python -m src.scraping.run_scrapers
-```
-
-7. **Sanitize os dados para formato JSONL**
-```bash
-python -m src.data_processing.run_sanitization
-```
-
-> ⚠️ **Importante**: Os arquivos CSV e JSONL de dados processados **não são versionados** no repositório. Na primeira execução do projeto, você precisa executar os scrapers e depois a sanitização para gerar esses dados localmente.
-
-> 📖 Para documentação completa do módulo de scraping, consulte [SCRAPING.md](docs/SCRAPING.md)
-
 ## 💻 Como Executar
 
 ### Pipeline Completo
@@ -162,33 +161,11 @@ pytest tests/ -v
 
 ## 📊 Dataset
 
-O projeto utiliza dados médicos de diversas especialidades, coletados via web scraping de fontes oficiais e processados para formato JSONL:
-
-### Fontes de Dados
-
-| Fonte | Descrição | CSV | JSONL |
-|-------|-----------|-----|-------|
-| **CONITEC/MS** | Protocolos Clínicos e Diretrizes Terapêuticas do Ministério da Saúde | `protocolos_medicos.csv` | `protocolos_medicos.jsonl` |
-| **TelessaúdeRS** | Perguntas frequentes e telecondutas da UFRGS | `perguntas_frequentes.csv` | `perguntas_frequentes.jsonl` |
-| **RadReport** | Templates de laudos radiológicos da RSNA | `modelos_laudos.csv` | `modelos_laudos.jsonl` |
-
-### Formato JSONL para Fine-tuning
-
-Os dados são sanitizados e convertidos para formato instruction/input/output:
-
-```json
-{"instruction": "Pergunta ou instrução", "input": "Contexto opcional", "output": "Resposta", "source": "Fonte", "category": "Categoria"}
-```
-
-O arquivo unificado `medical_data_unified.jsonl` contém todos os registros para treinamento.
-
-### Qualidade dos Dados
+O projeto utiliza dados médicos de diversas especialidades, seguindo rigorosos padrões de:
 
 - ✅ **LGPD** - Lei Geral de Proteção de Dados
 - ✅ **Anonimização** - Remoção de dados identificáveis
-- ✅ **Sanitização** - Limpeza de HTML, caracteres especiais e validação de tamanho
 - ✅ **Segurança** - Validação de inputs e outputs
-- ✅ **Validação rigorosa** - 100% dos registros validados
 
 ## 🏥 Áreas de Atuação
 

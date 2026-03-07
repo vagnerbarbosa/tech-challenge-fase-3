@@ -1,0 +1,33 @@
+# <tipo>[escopo opcional]: <descrição>
+#
+# [corpo opcional]
+#
+# [rodapé(s) opcional(is)]
+#
+# --- TIPOS PERMITIDOS ---
+# feat:     Nova funcionalidade
+# fix:      Correção de bug
+# docs:     Apenas mudanças na documentação
+# style:    Formatação (não afeta a lógica do código)
+# refactor: Refatoração de código (sem nova funcionalidade ou correção)
+# test:     Adição ou modificação de testes
+# chore:    Tarefas de build, CI, configs, etc.
+# perf:     Melhoria de performance
+# ci:       Mudanças em arquivos de CI
+# build:    Mudanças que afetam o sistema de build
+# revert:   Reverte um commit anterior
+#
+# --- REGRAS ---
+# - Linha de assunto: máximo 50 caracteres (ideal)
+# - Use o imperativo: "adiciona", não "adicionado"
+# - Não termine a linha de assunto com ponto
+# - Corpo: máximo 72 caracteres por linha
+# - Separe corpo do assunto com linha em branco
+#
+# --- EXEMPLOS ---
+# feat(auth): adiciona login com Google
+# fix: corrige cálculo de índice glicêmico
+# docs: atualiza README com instruções de instalação
+# refactor(api): simplifica validação de entrada
+# test: adiciona testes para módulo de validação
+# chore: atualiza dependências do projeto
