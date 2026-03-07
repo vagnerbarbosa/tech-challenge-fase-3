@@ -73,6 +73,7 @@ projeto_fase3/
 │   └── test_validators.py             # Testes para InputValidator e DataValidator
 ├── .env.example                       # Exemplo de variáveis de ambiente
 ├── .gitignore                         # Arquivos e pastas ignorados pelo Git
+├── login_hf.py                        # Script auxiliar para login no Hugging Face
 ├── main.py                            # Script principal - ponto de entrada da aplicação
 ├── README.md                          # Documentação do projeto
 └── requirements.txt                   # Dependências Python do projeto
@@ -188,6 +189,9 @@ Abra o arquivo `.env` em um editor de texto (VS Code, Notepad++, etc.) e configu
 # Seu token do Hugging Face (obtenha em https://huggingface.co/settings/tokens)
 HUGGINGFACE_TOKEN=hf_seu_token_aqui
 
+# Alternativa: HF_TOKEN (usado automaticamente pelo huggingface_hub)
+HF_TOKEN=hf_seu_token_aqui
+
 # Modelo base
 BASE_MODEL_NAME=meta-llama/Llama-2-7b-chat-hf
 
@@ -206,19 +210,47 @@ LOG_LEVEL=INFO
 
 ### 6️⃣ Faça login no Hugging Face
 
-**✅ Comando CORRETO:**
+Existem **várias formas** de fazer login no Hugging Face. Escolha a que funcionar melhor no seu ambiente:
+
+#### ✅ Método 1: Script Auxiliar (RECOMENDADO para Windows/Git Bash)
+
 ```bash
-huggingface-cli login
+python login_hf.py
 ```
 
-O terminal solicitará seu token. Cole o token obtido em [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) e pressione Enter.
+Este script abre um prompt interativo para você inserir seu token.
 
-> ⚠️ **IMPORTANTE:** O comando antigo `python -m huggingface_hub.commands.huggingface_cli login` **NÃO funciona** mais em versões recentes do `huggingface_hub`. Use sempre `huggingface-cli login`.
+#### ✅ Método 2: Comando Python Direto
 
-> 💡 **Alternativa com token direto:**
-> ```bash
-> huggingface-cli login --token hf_seu_token_aqui
-> ```
+```bash
+python -c "from huggingface_hub import login; login()"
+```
+
+#### ✅ Método 3: Comando `hf` (CLI oficial)
+
+```bash
+hf auth login
+```
+
+> ⚠️ **Nota:** No Windows/Git Bash, o executável `hf` pode não estar no PATH. Se receber "command not found", use o Método 1 ou 2.
+
+#### ✅ Método 4: Variável de Ambiente (Sem login interativo)
+
+Adicione seu token ao arquivo `.env`:
+```env
+HF_TOKEN=hf_seu_token_aqui
+```
+
+A biblioteca `huggingface_hub` detecta automaticamente esta variável.
+
+#### 📝 Onde obter seu token?
+
+1. Acesse: [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. Clique em **"New token"**
+3. Dê um nome e escolha o tipo:
+   - **Read**: Para baixar modelos (suficiente para a maioria dos casos)
+   - **Write**: Para fazer upload de modelos
+4. Copie o token gerado (começa com `hf_`)
 
 ---
 
@@ -250,7 +282,14 @@ nano .env  # ou use seu editor preferido
 
 5. **Faça login no Hugging Face**
 ```bash
-huggingface-cli login
+# Opção 1: CLI oficial
+hf auth login
+
+# Opção 2: Script auxiliar
+python login_hf.py
+
+# Opção 3: Python direto
+python -c "from huggingface_hub import login; login()"
 ```
 
 ---
@@ -282,41 +321,6 @@ python -m src.langchain_integration.assistant
 ```bash
 pytest tests/ -v
 ```
-
----
-
-## ❓ Solução de Problemas Comuns (Windows)
-
-### Erro: "huggingface_hub.commands não encontrado"
-**Problema:** Usando comando obsoleto para login.
-**Solução:** Use `huggingface-cli login` em vez de `python -m huggingface_hub.commands.huggingface_cli login`
-
-### Erro: "Execution Policy" no PowerShell
-**Problema:** PowerShell bloqueia a execução de scripts.
-**Solução:**
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-### Erro: "python não é reconhecido"
-**Problema:** Python não está no PATH do sistema.
-**Solução:** 
-- Reinstale o Python marcando a opção "Add Python to PATH"
-- Ou use `py` em vez de `python`:
-```bash
-py -m venv venv
-```
-
-### Erro ao instalar torch/PyTorch
-**Solução:** Instale o PyTorch separadamente antes das outras dependências:
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
-(Substitua `cu118` pela sua versão do CUDA, ou use `cpu` se não tiver GPU)
-
-### Erro: "No module named 'src'"
-**Problema:** O Python não está encontrando os módulos do projeto.
-**Solução:** Execute os comandos a partir da raiz do projeto (onde está o `main.py`)
 
 ---
 
