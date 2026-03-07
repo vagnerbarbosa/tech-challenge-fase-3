@@ -6,6 +6,7 @@ Responsável por:
 - Carregar modelo base (LLaMA/Falcon)
 - Configurar LoRA para fine-tuning eficiente
 - Treinar o modelo com os dados preparados
+- Validar existência de modelo treinado antes do treinamento
 """
 
 import os
@@ -31,6 +32,9 @@ logger = get_logger(__name__)
 class ModelTrainer:
     """
     Classe para fine-tuning de modelos LLM usando LoRA.
+    
+    Inclui validação para verificar modelo existente antes do treinamento,
+    permitindo ao usuário escolher entre sobrescrever ou reutilizar.
     """
     
     def __init__(
@@ -62,6 +66,95 @@ class ModelTrainer:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"ModelTrainer inicializado. Device: {self.device}")
         logger.info(f"Modelo base: {self.model_name}")
+    
+    def _check_existing_model(self) -> bool:
+        """
+        Verifica se já existe um modelo treinado no diretório de saída.
+        
+        Returns:
+            bool: True se existe um modelo treinado, False caso contrário
+        """
+        final_model_path = self.output_dir / "final_model"
+        
+        # Verifica se o diretório existe e contém arquivos de modelo
+        if final_model_path.exists() and final_model_path.is_dir():
+            # Verifica se contém arquivos essenciais do modelo
+            model_files = [
+                "config.json",
+                "pytorch_model.bin",
+                "model.safetensors",
+                "adapter_config.json",
+                "adapter_model.bin",
+                "adapter_model.safetensors",
+            ]
+            
+            has_model_file = any(
+                (final_model_path / f).exists() for f in model_files
+            )
+            
+            if has_model_file:
+                logger.info(f"Modelo existente encontrado em: {final_model_path}")
+                return True
+        
+        return False
+    
+    def _prompt_user_for_overwrite(self) -> str:
+        """
+        Pergunta ao usuário se deseja sobrescrever o modelo existente.
+        
+        Returns:
+            str: 'overwrite' para sobrescrever, 'use_existing' para usar o existente
+        """
+        final_model_path = self.output_dir / "final_model"
+        
+        print("\n" + "=" * 60)
+        print("⚠️  MODELO EXISTENTE DETECTADO")
+        print("=" * 60)
+        print(f"\nJá existe um modelo treinado em:\n  {final_model_path}")
+        print("\nO que você deseja fazer?")
+        print("  [1] Sobrescrever o modelo existente e treinar novamente")
+        print("  [2] Usar o modelo existente e pular o treinamento")
+        print("=" * 60)
+        
+        while True:
+            choice = input("\nDigite sua escolha (1 ou 2): ").strip()
+            
+            if choice == "1":
+                logger.info("Usuário escolheu sobrescrever o modelo existente")
+                return "overwrite"
+            elif choice == "2":
+                logger.info("Usuário escolheu usar o modelo existente")
+                return "use_existing"
+            else:
+                print("❌ Entrada inválida. Por favor, digite 1 ou 2.")
+    
+    def _load_existing_model(self) -> Tuple[Any, Any]:
+        """
+        Carrega o modelo existente do diretório de saída.
+        
+        Returns:
+            Tuple contendo (modelo, tokenizer)
+        """
+        final_model_path = self.output_dir / "final_model"
+        
+        logger.info(f"Carregando modelo existente de: {final_model_path}")
+        
+        tokenizer = AutoTokenizer.from_pretrained(
+            str(final_model_path),
+            trust_remote_code=True,
+        )
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.padding_side = "right"
+        
+        model = AutoModelForCausalLM.from_pretrained(
+            str(final_model_path),
+            device_map="auto" if self.device == "cuda" else None,
+            trust_remote_code=True,
+        )
+        
+        logger.info("Modelo existente carregado com sucesso!")
+        
+        return model, tokenizer
     
     def _get_quantization_config(self) -> BitsAndBytesConfig:
         """
@@ -159,17 +252,41 @@ class ModelTrainer:
             report_to="none",
         )
     
-    def train(self, dataset: Dataset) -> Tuple[Any, Any]:
+    def train(
+        self,
+        dataset: Dataset,
+        force_retrain: bool = False,
+    ) -> Tuple[Any, Any]:
         """
         Executa o fine-tuning do modelo.
         
+        Verifica se já existe um modelo treinado e pergunta ao usuário
+        se deseja sobrescrever ou usar o existente.
+        
         Args:
             dataset: Dataset preparado para treinamento
+            force_retrain: Se True, força o retreinamento sem perguntar ao
+                          usuário. Útil para automação e scripts não-interativos.
             
         Returns:
             Tupla (modelo treinado, tokenizer)
         """
-        logger.info("Iniciando treinamento...")
+        logger.info("Iniciando processo de treinamento...")
+        
+        # Verifica se já existe um modelo treinado
+        if self._check_existing_model():
+            if force_retrain:
+                logger.info("force_retrain=True: Sobrescrevendo modelo existente sem perguntar")
+            else:
+                user_choice = self._prompt_user_for_overwrite()
+                
+                if user_choice == "use_existing":
+                    logger.info("Pulando treinamento - usando modelo existente")
+                    model, tokenizer = self._load_existing_model()
+                    return model, tokenizer
+                
+                # Se chegou aqui, user_choice == "overwrite"
+                logger.info("Usuário optou por sobrescrever - iniciando novo treinamento")
         
         # Carrega modelo e tokenizer
         model, tokenizer = self.load_model_and_tokenizer()
@@ -199,6 +316,15 @@ class ModelTrainer:
         logger.info(f"Modelo salvo em: {final_path}")
         
         return model, tokenizer
+    
+    def get_model_path(self) -> Path:
+        """
+        Retorna o caminho do modelo treinado.
+        
+        Returns:
+            Path do modelo final
+        """
+        return self.output_dir / "final_model"
 
 
 if __name__ == "__main__":
