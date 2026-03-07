@@ -47,7 +47,7 @@ class ModelTrainer:
         """
         self.model_name = model_name or os.getenv(
             "BASE_MODEL_NAME", 
-            "meta-llama/Llama-2-7b-chat-hf"
+            "tiiuae/falcon-7b-instruct"
         )
         self.output_dir = Path(output_dir or os.getenv("MODEL_PATH", "./models"))
         self.output_dir.mkdir(parents=True, exist_ok=True)
