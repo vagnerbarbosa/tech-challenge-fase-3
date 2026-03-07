@@ -321,26 +321,86 @@ python -m src.fine_tuning.evaluation
 python -m src.langchain_integration.assistant
 ```
 
-### 📁 Estrutura de Dados
+### 📁 Fluxo de Dados
 
-O módulo de preparação de dados procura arquivos nas seguintes localizações:
+O projeto trabalha exclusivamente com arquivos **JSONL**, otimizados para fine-tuning:
 
-| Prioridade | Localização | Formato |
-|------------|-------------|---------|
-| 1️⃣ | `data/processed/medical_data_unified.jsonl` | JSONL unificado |
-| 2️⃣ | `data/raw/` | CSV ou JSONL |
-| 3️⃣ | `data/processed/` | CSVs individuais |
-
-**Formato esperado dos arquivos:**
-- Colunas/campos: `instruction`, `input`, `output`
-- Codificação: UTF-8
-
-**Exemplo de registro JSONL:**
-```json
-{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem febre, dor de cabeça..."}
+```
+1. Scraping                    2. Preparação                3. Training
+   ─────────────────────────────────────────────────────────────────────
+   
+   run_scrapers.py            data_preparation.py          training.py
+         │                           │                          │
+         ▼                           ▼                          ▼
+   data/raw/                  data/processed/              Fine-tuning
+   └── *.jsonl           ───► medical_data_unified.jsonl ───► LLM
 ```
 
-> 💡 **Se nenhum dado for encontrado**, o sistema cria automaticamente um dataset de exemplo com 8 perguntas médicas gerais para demonstração.
+### 🔄 Comportamento Automático de Dados
+
+O sistema é **auto-suficiente** e garante que sempre haverá dados para a pipeline:
+
+1. **Validação**: Verifica se `data/raw/` contém arquivos JSONL válidos
+2. **Limpeza**: Se houver arquivos inválidos ou não-JSONL, limpa o diretório
+3. **Scraping Automático**: Invoca os scrapers para coletar dados médicos
+4. **Fallback**: Se os scrapers falharem, cria um arquivo de exemplo com 5 registros
+
+Isso significa que você pode simplesmente executar:
+
+```bash
+python main.py
+# ou
+python -m src.fine_tuning.data_preparation
+```
+
+E o sistema automaticamente:
+- Detectará a ausência de dados
+- Executará os scrapers
+- Ou criará dados de exemplo se necessário
+
+### Opção 1: Execução Automática (Recomendado)
+
+Basta executar o pipeline principal - os scrapers serão invocados automaticamente se necessário:
+
+```bash
+python main.py
+```
+
+### Opção 2: Executar Scrapers Manualmente
+
+Se preferir controle manual sobre o scraping:
+
+```bash
+# Executar todos os scrapers
+python -m src.scraping.run_scrapers
+
+# Preparar dados para training
+python -m src.fine_tuning.data_preparation
+```
+
+Os scrapers geram arquivos JSONL em `data/raw/`:
+- `protocolos_medicos.jsonl` - CONITEC/MS
+- `perguntas_frequentes.jsonl` - TelessaúdeRS
+- `modelos_laudos.jsonl` - RadReport
+
+### Opção 3: Fornecer seus próprios dados
+
+Coloque arquivos `.jsonl` em `data/raw/` com o formato:
+
+```json
+{"instruction": "Quais são os sintomas da gripe?", "input": "", "output": "Os principais sintomas incluem febre..."}
+{"instruction": "Como tratar dor lombar?", "input": "Paciente com dor há 3 dias", "output": "Para dor lombar aguda..."}
+```
+
+**Campos obrigatórios:**
+
+| Campo | Descrição |
+|-------|-----------|
+| `instruction` | Pergunta ou instrução para o modelo |
+| `input` | Contexto adicional (pode ser vazio) |
+| `output` | Resposta esperada |
+
+Para mais detalhes sobre o scraping, consulte [docs/SCRAPING.md](docs/SCRAPING.md).
 
 ### Testes
 ```bash

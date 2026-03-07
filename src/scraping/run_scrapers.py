@@ -3,10 +3,16 @@
 Script Principal para Execução dos Web Scrapers
 ================================================
 
-Executa todos os scrapers de dados médicos e gera os CSVs:
-- protocolos_medicos.csv (HCPA)
-- perguntas_frequentes.csv (TelessaúdeRS)
-- modelos_laudos.csv (RadReport)
+Executa todos os scrapers de dados médicos e gera arquivos JSONL em data/raw/:
+- protocolos_medicos.jsonl (CONITEC/MS)
+- perguntas_frequentes.jsonl (TelessaúdeRS)
+- modelos_laudos.jsonl (RadReport)
+
+O formato JSONL é otimizado para fine-tuning, com campos:
+- instruction: pergunta/instrução
+- input: contexto adicional
+- output: resposta esperada
+- source: fonte dos dados
 
 Uso:
     python -m src.scraping.run_scrapers

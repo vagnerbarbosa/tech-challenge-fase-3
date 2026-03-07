@@ -228,24 +228,34 @@ class TelessaudeScraper(BaseScraper):
     
     def run(self) -> Path:
         """
-        Executa o scraping completo e salva em CSV.
+        Executa o scraping completo e salva em JSONL.
         
         Returns:
-            Path do arquivo CSV gerado
+            Path do arquivo JSONL gerado
         """
         try:
             faqs = self.scrape()
             
-            # Define colunas para o CSV
-            columns = ["pergunta", "resposta", "especialidade", "categoria", "fonte"]
-            
-            # Garante que todas as colunas existam
+            # Transforma para formato instruction/input/output
+            transformed = []
             for faq in faqs:
-                for col in columns:
-                    if col not in faq:
-                        faq[col] = ""
+                especialidade = faq.get("especialidade", "")
+                categoria = faq.get("categoria", "")
+                
+                # Monta o input com contexto
+                input_parts = []
+                if especialidade:
+                    input_parts.append(f"Especialidade: {especialidade}")
+                if categoria:
+                    input_parts.append(f"Categoria: {categoria}")
+                
+                transformed.append({
+                    "instruction": faq.get("pergunta", ""),
+                    "input": " | ".join(input_parts) if input_parts else "",
+                    "output": faq.get("resposta", ""),
+                })
             
-            filepath = self._save_to_csv(faqs, "perguntas_frequentes", columns)
+            filepath = self._save_to_jsonl(transformed, "perguntas_frequentes", "TelessaúdeRS-UFRGS")
             return filepath
             
         except Exception as e:
