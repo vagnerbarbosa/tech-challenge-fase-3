@@ -37,7 +37,7 @@ class ModelEvaluator:
                 "text-generation",
                 model=model,
                 tokenizer=tokenizer,
-                device_map="auto",  # Importante para Phi-3
+                device_map="auto",  # Importante para BioMistral
                 trust_remote_code=True
             )
         except Exception as e:
@@ -62,16 +62,16 @@ class ModelEvaluator:
         Returns:
             Resposta gerada
         """
-        # Configuração mais segura para Phi-3
+        # Configuração mais segura para BioMistral
         result = self.generator(
             prompt,
             max_new_tokens=max_new_tokens,
-            temperature=0.1,            # Menos criatividade
+            temperature=0.1,              # Menos criatividade
             top_p=0.9,
             repetition_penalty=1.2,
             do_sample=True,
             pad_token_id=self.tokenizer.eos_token_id,
-            return_full_text=False      # Evita repetir o prompt
+            return_full_text=False        # Evita repetir o prompt
         )
         
         return result[0]['generated_text']
@@ -131,8 +131,8 @@ class ModelEvaluator:
         similarities = []
         
         for question, expected in zip(questions, expected_answers):
-            # Prompt no formato Phi-3
-            prompt = self.format_phi3_prompt(question)
+            # Prompt no formato BioMistral
+            prompt = self.format_biomistral_prompt(question)
             generated = self.generate_response(prompt)
             
             # Calcula similaridade
@@ -146,11 +146,11 @@ class ModelEvaluator:
             "max_similarity": np.max(similarities),
         }
     
-    def format_phi3_prompt(self, pergunta: str) -> str:
+    def format_biomistral_prompt(self, pergunta: str) -> str:
         """
-        Formata prompt no estilo Phi-3 com tags de sistema e usuário.
+        Formata prompt no estilo BioMistral (Mistral-Style).
         """
-        return f"<|system|>\nVocê é um assistente médico técnico. Use estritamente os protocolos de laudos e diretrizes clínicas brasileiras para responder de forma concisa. Não invente diálogos adicionais.<|end|>\n<|user|>\n{pergunta}<|end|>\n<|assistant|>\n"
+        return f"<s>[INST] Você é um assistente médico técnico. Use estritamente os protocolos de laudos e diretrizes clínicas brasileiras para responder de forma concisa. Não invente diálogos adicionais.\n\nPergunta: {pergunta} [/INST]"
 
     def evaluate(self, dataset: Dataset) -> Dict[str, Any]:
         """
@@ -183,7 +183,7 @@ class ModelEvaluator:
         ]
         
         for prompt in test_prompts:
-            formatted_prompt = self.format_phi3_prompt(prompt)
+            formatted_prompt = self.format_biomistral_prompt(prompt)
             response = self.generate_response(formatted_prompt)
             logger.info(f"\nPergunta: {prompt}")
             logger.info(f"Resposta: {response}")
