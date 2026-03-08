@@ -41,13 +41,21 @@ class ModelEvaluator:
         self.tokenizer = tokenizer
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # Configura pipeline de geração
-        self.generator = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=0 if self.device == "cuda" else -1,
-        )
+        # Configura pipeline de geração sem forçar device (compatível com accelerate)
+        try:
+            self.generator = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer
+            )
+        except Exception as e:
+            logger.warning(f"Falha ao criar pipeline com device automático: {e}")
+            self.generator = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                device=None  # Força device=None para evitar conflito com accelerate
+            )
         
         logger.info("ModelEvaluator inicializado para assistente médico generalista")
     
