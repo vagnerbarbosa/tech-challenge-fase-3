@@ -73,53 +73,48 @@ class MedicalAssistant:
         return self.validator.validate_query(user_input)
     
     def process_message(self, user_input: str) -> str:
-        """
-        Processa uma mensagem do usuário usando o formato de prompt do BioMistral.
-        """
-        # 1. Valida entrada
         is_valid, message = self.validate_input(user_input)
-        if not is_valid:
-            return message
-        
-        # 2. Verifica se é uma pergunta sobre emergência
+        if not is_valid: return message
+
         if self.tools.is_emergency_question(user_input):
             return self._handle_emergency(user_input)
-        
-        # 3. Formatação do Prompt para BioMistral (Mistral-7B Style)
-        # O uso de <s>[INST] ... [/INST] é obrigatório para este modelo.
+
+        # 1. Prompt com instrução de parada clara
         biomistral_prompt = (
-            f"<s>[INST] {self.system_instruction}\n\n"
-            f"Pergunta: {user_input} [/INST]"
+            f"<s>[INST] Você é um assistente médico técnico. Responda de forma concisa e pare após concluir a resposta técnica. "
+            f"Não repita cabeçalhos.\n\nPergunta: {user_input} [/INST]"
         )
-        
-        # 4. Processa através da chain principal
+
         try:
-            # Carrega histórico para contexto (opcional, dependendo da sua qa_chain)
-            chat_history = self.memory.load_memory_variables({})["chat_history"]
-            
+            # 2. Geração com parâmetros anti-repetição
+            # Aumentamos a repetition_penalty para 1.3 e baixamos a temperatura
             response = self.chains.qa_chain.invoke({
                 "question": biomistral_prompt,
-                "chat_history": chat_history,
+                "chat_history": self.memory.load_memory_variables({})["chat_history"],
+                "repetition_penalty": 1.3, # Impede o modelo de ficar em loop
+                "temperature": 0.1,        # Torna a resposta mais "seca" e técnica
+                "max_new_tokens": 300      # Limita o tamanho para não divagar
             })
-            
-            # Limpeza: Remove o prompt da resposta caso o modelo o repita
+
+            # 3. Limpeza agressiva de "lixo" de repetição
+            # O BioMistral às vezes repete o bloco de contexto. Vamos cortar na primeira ocorrência repetida.
             clean_response = response.replace(biomistral_prompt, "").strip()
             
-            # Adiciona a fonte conforme solicitado no seu script anterior
-            source_info = "\n\nFonte: Protocolos Clínicos / Diretrizes de Laudos (Treinamento Local)"
-            final_output = f"{clean_response}{source_info}"
-            
-            # 5. Salva na memória (salvamos a pergunta limpa para não poluir o contexto futuro)
-            self.memory.save_context(
-                {"input": user_input},
-                {"output": final_output}
-            )
-            
-            return final_output
-            
+            # Se ele começar a repetir "Contexto:" ou "Resposta:", cortamos ali
+            if "### Contexto" in clean_response:
+                clean_response = clean_response.split("### Contexto")[0].strip()
+            if "### Resposta" in clean_response:
+                clean_response = clean_response.split("### Resposta")[0].strip()
+
+            source_info = "\n\nFonte: Protocolos Clínicos / Dados Internos."
+            response_with_source = f"{clean_response}{source_info}"
+
+            self.memory.save_context({"input": user_input}, {"output": response_with_source})
+            return response_with_source
+
         except Exception as e:
-            logger.error(f"Erro ao processar mensagem: {e}")
-            return "Desculpe, ocorreu um erro ao processar sua pergunta. Por favor, tente novamente."
+            logging.error(f"Erro: {e}")
+            return "Erro ao processar. Tente novamente."
     
     def _handle_emergency(self, user_input: str) -> str:
         """
