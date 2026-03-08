@@ -3,7 +3,7 @@ Módulo de Treinamento (Fine-tuning) do LLM
 ==========================================
 
 Responsável por:
-- Carregar modelo base (LLaMA/Falcon)
+- Carregar modelo base (LLaMA/Falcon/TinyLlama)
 - Configurar LoRA para fine-tuning eficiente
 - Treinar o modelo com os dados preparados
 - Validar existência de modelo treinado antes do treinamento
@@ -20,7 +20,7 @@ from transformers import (
     TrainingArguments,
     BitsAndBytesConfig,
 )
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel, PeftConfig
 from trl import SFTTrainer
 from datasets import Dataset
 
@@ -51,7 +51,7 @@ class ModelTrainer:
         """
         self.model_name = model_name or os.getenv(
             "BASE_MODEL_NAME", 
-            "tiiuae/falcon-7b-instruct"
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         )
         self.output_dir = Path(output_dir or os.getenv("MODEL_PATH", "./models"))
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -130,32 +130,37 @@ class ModelTrainer:
     
     def _load_existing_model(self) -> Tuple[Any, Any]:
         """
-        Carrega o modelo existente do diretório de saída.
+        Carrega o modelo existente com LoRA do diretório de saída.
         
         Returns:
             Tuple contendo (modelo, tokenizer)
         """
         final_model_path = self.output_dir / "final_model"
-        
         logger.info(f"Carregando modelo existente de: {final_model_path}")
-        
-        tokenizer = AutoTokenizer.from_pretrained(
-            str(final_model_path),
-            trust_remote_code=True,
-        )
+
+        # Carrega tokenizer
+        tokenizer = AutoTokenizer.from_pretrained(str(final_model_path), trust_remote_code=False)
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
-        
-        model = AutoModelForCausalLM.from_pretrained(
-            str(final_model_path),
+
+        # Carrega configuração PEFT para saber o modelo base
+        peft_config = PeftConfig.from_pretrained(str(final_model_path))
+
+        # Carrega modelo base
+        base_model = AutoModelForCausalLM.from_pretrained(
+            peft_config.base_model_name_or_path,
+            quantization_config=self._get_quantization_config(),
             device_map="auto" if self.device == "cuda" else None,
-            trust_remote_code=True,
+            trust_remote_code=False,
         )
-        
-        logger.info("Modelo existente carregado com sucesso!")
-        
+
+        # Aplica LoRA
+        model = PeftModel.from_pretrained(base_model, str(final_model_path))
+
+        logger.info("Modelo existente com LoRA carregado com sucesso!")
+
         return model, tokenizer
-    
+
     def _get_quantization_config(self) -> BitsAndBytesConfig:
         """
         Retorna configuração de quantização 4-bit.
@@ -198,7 +203,7 @@ class ModelTrainer:
         # Carrega tokenizer
         tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,
-            trust_remote_code=True,
+            trust_remote_code=False,
         )
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
@@ -210,8 +215,8 @@ class ModelTrainer:
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             quantization_config=bnb_config,
-            device_map="auto",
-            trust_remote_code=True,
+            device_map="auto" if self.device == "cuda" else None,
+            trust_remote_code=False,
         )
         
         # Prepara para treinamento com quantização
@@ -234,6 +239,7 @@ class ModelTrainer:
         Returns:
             TrainingArguments configurado
         """
+
         return TrainingArguments(
             output_dir=str(self.output_dir / "checkpoints"),
             num_train_epochs=self.num_epochs,
@@ -241,14 +247,13 @@ class ModelTrainer:
             gradient_accumulation_steps=4,
             learning_rate=self.learning_rate,
             weight_decay=0.01,
-            warmup_ratio=0.03,
+            warmup_steps=10,  
             lr_scheduler_type="cosine",
-            logging_dir=str(self.output_dir / "logs"),
             logging_steps=10,
             save_strategy="epoch",
-            evaluation_strategy="no",
+            eval_strategy="no",
             fp16=True if self.device == "cuda" else False,
-            optim="paged_adamw_8bit",
+            optim="adamw_torch",  
             report_to="none",
         )
     
@@ -299,10 +304,7 @@ class ModelTrainer:
             model=model,
             train_dataset=dataset,
             args=training_args,
-            tokenizer=tokenizer,
-            dataset_text_field="text",
-            max_seq_length=self.max_seq_length,
-            packing=False,
+            processing_class=tokenizer
         )
         
         # Treina
