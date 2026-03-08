@@ -1,12 +1,13 @@
 """
-Assistente Virtual Médico Generalista
-=====================================
+Assistente Virtual Médico Generalista (BioMistral Edition)
+=========================================================
 
-Implementa o assistente médico generalista usando LangChain.
+Implementa o assistente médico generalista usando LangChain e BioMistral-7B.
 Capaz de responder perguntas sobre diversas condições médicas e orientar pacientes.
 """
 
 import os
+import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.memory import ConversationBufferMemory
@@ -23,7 +24,7 @@ logger = get_logger(__name__)
 
 class MedicalAssistant:
     """
-    Assistente virtual médico generalista.
+    Assistente virtual médico generalista otimizado para BioMistral.
     Fornece informações educativas sobre diversas condições de saúde.
     """
     
@@ -32,7 +33,7 @@ class MedicalAssistant:
         Inicializa o assistente médico generalista.
         
         Args:
-            model: Modelo LLM treinado
+            model: Modelo LLM treinado (BioMistral-7B)
             tokenizer: Tokenizer do modelo
         """
         self.model = model
@@ -49,79 +50,72 @@ class MedicalAssistant:
         self.chains = MedicalChains(model, tokenizer)
         self.tools = MedicalTools()
         
-        # Prompt do sistema
-        self.system_prompt = self._create_system_prompt()
+        # Prompt do sistema (incorporado no formato BioMistral)
+        self.system_instruction = self._get_system_instruction()
         
-        logger.info("MedicalAssistant (Generalista) inicializado")
+        logger.info("MedicalAssistant (BioMistral) inicializado")
     
-    def _create_system_prompt(self) -> str:
+    def _get_system_instruction(self) -> str:
         """
-        Cria o prompt do sistema para o assistente médico generalista.
-        
-        Returns:
-            Prompt do sistema
+        Retorna as diretrizes do sistema para o assistente.
         """
-        return """Você é um assistente virtual médico generalista.
-
-Diretrizes:
-1. Forneça informações precisas e baseadas em evidências científicas
-2. Sempre recomende consultar um médico para diagnósticos e tratamentos
-3. Não forneça diagnósticos - apenas informações educativas
-4. Seja empático e acolhedor nas respostas
-5. Use linguagem clara e acessível
-6. Respeite a privacidade do paciente
-7. Oriente sobre quando buscar atendimento de emergência
-8. Sugira especialistas adequados quando pertinente
-
-Aviso importante: Este assistente fornece apenas informações educativas.
-Para diagnósticos e tratamentos, sempre consulte um profissional de saúde.
-"""
+        return (
+            "Você é um assistente médico técnico e atencioso. "
+            "Forneça informações precisas baseadas em evidências. "
+            "Não forneça diagnósticos definitivos. Responda em português brasileiro "
+            "de forma concisa e profissional, baseando-se em protocolos clínicos."
+        )
     
     def validate_input(self, user_input: str) -> tuple[bool, str]:
         """
         Valida a entrada do usuário.
-        
-        Args:
-            user_input: Texto de entrada do usuário
-            
-        Returns:
-            Tupla (é_válido, mensagem)
         """
         return self.validator.validate_query(user_input)
     
     def process_message(self, user_input: str) -> str:
         """
-        Processa uma mensagem do usuário.
-        
-        Args:
-            user_input: Mensagem do usuário
-            
-        Returns:
-            Resposta do assistente
+        Processa uma mensagem do usuário usando o formato de prompt do BioMistral.
         """
-        # Valida entrada
+        # 1. Valida entrada
         is_valid, message = self.validate_input(user_input)
         if not is_valid:
             return message
         
-        # Verifica se é uma pergunta sobre emergência
+        # 2. Verifica se é uma pergunta sobre emergência
         if self.tools.is_emergency_question(user_input):
             return self._handle_emergency(user_input)
         
-        # Processa através da chain principal
+        # 3. Formatação do Prompt para BioMistral (Mistral-7B Style)
+        # O uso de <s>[INST] ... [/INST] é obrigatório para este modelo.
+        biomistral_prompt = (
+            f"<s>[INST] {self.system_instruction}\n\n"
+            f"Pergunta: {user_input} [/INST]"
+        )
+        
+        # 4. Processa através da chain principal
         try:
+            # Carrega histórico para contexto (opcional, dependendo da sua qa_chain)
+            chat_history = self.memory.load_memory_variables({})["chat_history"]
+            
             response = self.chains.qa_chain.invoke({
-                "question": user_input,
-                "chat_history": self.memory.load_memory_variables({})["chat_history"],
+                "question": biomistral_prompt,
+                "chat_history": chat_history,
             })
             
-            # Salva na memória
+            # Limpeza: Remove o prompt da resposta caso o modelo o repita
+            clean_response = response.replace(biomistral_prompt, "").strip()
+            
+            # Adiciona a fonte conforme solicitado no seu script anterior
+            source_info = "\n\nFonte: Protocolos Clínicos / Diretrizes de Laudos (Treinamento Local)"
+            final_output = f"{clean_response}{source_info}"
+            
+            # 5. Salva na memória (salvamos a pergunta limpa para não poluir o contexto futuro)
             self.memory.save_context(
                 {"input": user_input},
-                {"output": response}
+                {"output": final_output}
             )
             
-            return response
+            return final_output
             
         except Exception as e:
             logger.error(f"Erro ao processar mensagem: {e}")
@@ -129,15 +123,9 @@ Para diagnósticos e tratamentos, sempre consulte um profissional de saúde.
     
     def _handle_emergency(self, user_input: str) -> str:
         """
-        Trata casos de emergência.
-        
-        Args:
-            user_input: Mensagem do usuário
-            
-        Returns:
-            Resposta de emergência
+        Trata casos de emergência com resposta padrão de segurança.
         """
-        emergency_response = """⚠️ ATENÇÃO: Sua pergunta pode indicar uma situação de emergência.
+        return """⚠️ ATENÇÃO: Sua pergunta pode indicar uma situação de emergência.
 
 Se você está enfrentando uma emergência médica:
 1. Ligue imediatamente para 192 (SAMU) ou 193 (Bombeiros)
@@ -154,8 +142,6 @@ Sintomas que requerem atendimento imediato:
 - Febre muito alta que não cede
 
 Este assistente não substitui atendimento médico de emergência."""
-        
-        return emergency_response
     
     def clear_history(self) -> None:
         """
@@ -166,10 +152,7 @@ Este assistente não substitui atendimento médico de emergência."""
     
     def get_chat_history(self) -> List[Dict[str, str]]:
         """
-        Retorna o histórico de conversação.
-        
-        Returns:
-            Lista de mensagens do histórico
+        Retorna o histórico de conversação formatado.
         """
         history = self.memory.load_memory_variables({})["chat_history"]
         return [
