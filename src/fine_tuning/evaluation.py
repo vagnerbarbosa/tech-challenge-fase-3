@@ -1,13 +1,4 @@
-"""
-Módulo de Avaliação do Modelo
-=============================
-
-Responsável por:
-- Avaliar métricas do modelo treinado
-- Gerar relatórios de performance
-- Comparar com baseline
-- Testar capacidade de responder perguntas médicas gerais
-"""
+# src/fine_tuning/evaluation.py
 
 import os
 from pathlib import Path
@@ -16,7 +7,7 @@ from typing import Dict, List, Any, Optional
 import torch
 import numpy as np
 from datasets import Dataset
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 
 from src.utils.logging_config import get_logger
 
@@ -39,14 +30,15 @@ class ModelEvaluator:
         """
         self.model = model
         self.tokenizer = tokenizer
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         # Configura pipeline de geração sem forçar device (compatível com accelerate)
         try:
             self.generator = pipeline(
                 "text-generation",
                 model=model,
-                tokenizer=tokenizer
+                tokenizer=tokenizer,
+                device_map="auto",  # Importante para Phi-3
+                trust_remote_code=True
             )
         except Exception as e:
             logger.warning(f"Falha ao criar pipeline com device automático: {e}")
@@ -59,24 +51,27 @@ class ModelEvaluator:
         
         logger.info("ModelEvaluator inicializado para assistente médico generalista")
     
-    def generate_response(self, prompt: str, max_length: int = 256) -> str:
+    def generate_response(self, prompt: str, max_new_tokens: int = 200) -> str:
         """
         Gera resposta para um prompt médico.
         
         Args:
             prompt: Texto de entrada (pergunta médica)
-            max_length: Tamanho máximo da resposta
+            max_new_tokens: Número máximo de tokens a gerar
             
         Returns:
             Resposta gerada
         """
+        # Configuração mais segura para Phi-3
         result = self.generator(
             prompt,
-            max_length=max_length,
-            num_return_sequences=1,
-            temperature=0.7,
+            max_new_tokens=max_new_tokens,
+            temperature=0.1,            # Menos criatividade
+            top_p=0.9,
+            repetition_penalty=1.2,
             do_sample=True,
             pad_token_id=self.tokenizer.eos_token_id,
+            return_full_text=False      # Evita repetir o prompt
         )
         
         return result[0]['generated_text']
@@ -105,7 +100,7 @@ class ModelEvaluator:
                     max_length=512,
                 )
                 
-                input_ids = encodings.input_ids.to(self.device)
+                input_ids = encodings.input_ids.to(self.model.device)
                 
                 outputs = self.model(input_ids, labels=input_ids)
                 total_loss += outputs.loss.item() * input_ids.size(1)
@@ -136,14 +131,12 @@ class ModelEvaluator:
         similarities = []
         
         for question, expected in zip(questions, expected_answers):
-            prompt = f"### Instrução:\n{question}\n\n### Resposta:\n"
+            # Prompt no formato Phi-3
+            prompt = self.format_phi3_prompt(question)
             generated = self.generate_response(prompt)
             
-            # Remove o prompt da resposta gerada
-            response = generated.replace(prompt, "").strip()
-            
             # Calcula similaridade
-            similarity = SequenceMatcher(None, response.lower(), expected.lower()).ratio()
+            similarity = SequenceMatcher(None, generated.lower(), expected.lower()).ratio()
             similarities.append(similarity)
         
         return {
@@ -153,6 +146,12 @@ class ModelEvaluator:
             "max_similarity": np.max(similarities),
         }
     
+    def format_phi3_prompt(self, pergunta: str) -> str:
+        """
+        Formata prompt no estilo Phi-3 com tags de sistema e usuário.
+        """
+        return f"<|system|>\nVocê é um assistente médico técnico. Use estritamente os protocolos de laudos e diretrizes clínicas brasileiras para responder de forma concisa. Não invente diálogos adicionais.<|end|>\n<|user|>\n{pergunta}<|end|>\n<|assistant|>\n"
+
     def evaluate(self, dataset: Dataset) -> Dict[str, Any]:
         """
         Executa avaliação completa do modelo médico generalista.
@@ -178,15 +177,16 @@ class ModelEvaluator:
         # Teste de geração com perguntas médicas gerais
         logger.info("Testando geração de respostas médicas...")
         test_prompts = [
-            "Quais são os sintomas de uma gripe?",
-            "Quando devo procurar um médico?",
-            "Como melhorar minha qualidade de sono?",
+            "Como estruturar um laudo de RM de Coluna Lombar?",
+            "Quais exames devo solicitar na investigação inicial de anemia?",
+            "Quais são as diretrizes do protocolo de Acidentes Escorpiônicos?",
         ]
         
         for prompt in test_prompts:
-            response = self.generate_response(f"### Instrução:\n{prompt}\n\n### Resposta:\n")
+            formatted_prompt = self.format_phi3_prompt(prompt)
+            response = self.generate_response(formatted_prompt)
             logger.info(f"\nPergunta: {prompt}")
-            logger.info(f"Resposta: {response[:200]}...")
+            logger.info(f"Resposta: {response}")
         
         logger.info("\nAvaliação do assistente médico generalista concluída!")
         
