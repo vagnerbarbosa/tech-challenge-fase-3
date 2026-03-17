@@ -7,7 +7,10 @@ Implementa as chains para o assistente médico generalista.
 
 from typing import Any, Optional
 
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+try:
+    from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+except ImportError:
+    from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 
 from src.utils.logging_config import get_logger

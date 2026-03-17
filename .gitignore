@@ -116,3 +116,7 @@ mlruns/
 *.temp
 tmp/
 temp/
+
+
+# SQLite database files (prontuários simulados - gerados em runtime)
+src/database/*.db
