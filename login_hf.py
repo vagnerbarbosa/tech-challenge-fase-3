@@ -225,6 +225,3 @@ def main():
                 print("Obtenha um novo token em: https://huggingface.co/settings/tokens")
                 sys.exit(1)
 
-
-if __name__ == "__main__":
-    main()

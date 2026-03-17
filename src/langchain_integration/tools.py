@@ -208,16 +208,3 @@ class MedicalTools:
         
         return tips
 
-
-if __name__ == "__main__":
-    tools = MedicalTools()
-    
-    # Teste de interpretação de temperatura
-    print(tools.interpret_temperature(36.5))
-    print(tools.interpret_temperature(38.5))
-    
-    # Teste de sugestão de especialidade
-    print(tools.suggest_specialty("Estou com dor de cabeça forte"))
-    
-    # Teste de detecção de emergência
-    print(tools.is_emergency_question("Estou com dor forte no peito"))

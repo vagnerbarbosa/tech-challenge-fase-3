@@ -1,5 +1,3 @@
-# src/fine_tuning/evaluation.py
-
 import os
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -192,7 +190,3 @@ class ModelEvaluator:
         
         return metrics
 
-
-if __name__ == "__main__":
-    # Este módulo requer modelo treinado para funcionar
-    logger.info("Execute este módulo através do main.py")

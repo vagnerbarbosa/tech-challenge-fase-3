@@ -130,8 +130,3 @@ Resumo:"""
             "chat_history": chat_history or [],
         })
 
-
-if __name__ == "__main__":
-    chains = MedicalChains()
-    response = chains.get_qa_response("Quais são os sintomas de uma gripe?")
-    print(f"Resposta: {response}")
