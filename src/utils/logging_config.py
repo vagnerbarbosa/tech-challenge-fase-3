@@ -70,12 +70,3 @@ def get_logger(name: str) -> logging.Logger:
     """
     return logging.getLogger(name)
 
-
-if __name__ == "__main__":
-    setup_logging()
-    logger = get_logger(__name__)
-    
-    logger.debug("Mensagem de debug")
-    logger.info("Mensagem de info")
-    logger.warning("Mensagem de warning")
-    logger.error("Mensagem de erro")

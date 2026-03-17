@@ -148,12 +148,3 @@ def run_all_scrapers(
     
     return results
 
-
-if __name__ == "__main__":
-    results = run_all_scrapers()
-    
-    print("\n" + "="*50)
-    print("ARQUIVOS GERADOS:")
-    print("="*50)
-    for name, path in results.items():
-        print(f"  {name}: {path}")

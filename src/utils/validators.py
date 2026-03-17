@@ -178,15 +178,3 @@ class DataValidator:
         
         return True, "OK"
 
-
-if __name__ == "__main__":
-    # Testes
-    input_val = InputValidator()
-    
-    # Teste de validação
-    print(input_val.validate_query("O que é diabetes?"))
-    print(input_val.validate_query("<script>alert('xss')</script>"))
-    print(input_val.validate_query(""))
-    
-    # Teste de sanitização
-    print(input_val.sanitize_input("  <b>Texto</b>   com   espaços  "))

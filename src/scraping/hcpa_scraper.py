@@ -618,11 +618,3 @@ class HCPAScraper(BaseScraper):
         finally:
             self.close()
 
-
-if __name__ == "__main__":
-    from src.utils.logging_config import setup_logging
-    setup_logging()
-    
-    scraper = HCPAScraper()
-    filepath = scraper.run()
-    print(f"\nArquivo gerado: {filepath}")

@@ -498,34 +498,3 @@ class DataPreparation:
             },
         ]
 
-
-def run():
-    """
-    Função principal para execução isolada do módulo.
-    """
-    from dotenv import load_dotenv
-    
-    env_path = PROJECT_ROOT / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-        print(f"✓ Variáveis de ambiente carregadas de: {env_path}")
-    
-    print("\n" + "=" * 60)
-    print("PREPARAÇÃO DE DADOS - Execução Isolada")
-    print("=" * 60 + "\n")
-    
-    prep = DataPreparation()
-    dataset = prep.prepare_dataset()
-    
-    print("\n" + "-" * 60)
-    print(f"Dataset preparado com sucesso: {len(dataset)} exemplos")
-    print("-" * 60)
-    print("\nExemplo de dado preparado:")
-    print(dataset[0]['text'][:500] + "...")
-    print("\n✓ Preparação concluída!")
-    
-    return dataset
-
-
-if __name__ == "__main__":
-    run()

@@ -96,6 +96,3 @@ class TestDataValidator:
         is_valid, msg = self.validator.validate_medical_record(record)
         assert is_valid is False
 
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

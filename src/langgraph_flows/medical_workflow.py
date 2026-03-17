@@ -307,20 +307,3 @@ Cuide-se bem! Estarei aqui sempre que precisar. 💙"""
             logger.error(f"Erro no workflow: {e}")
             return "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
 
-
-if __name__ == "__main__":
-    # Teste do workflow generalista
-    workflow = MedicalWorkflow()
-    
-    test_messages = [
-        "Olá!",
-        "Quais são os sintomas de uma gripe?",
-        "Minha temperatura está em 38.5 graus",
-        "Estou com dor forte no peito",
-        "Tchau!",
-    ]
-    
-    for msg in test_messages:
-        print(f"\n👤 Usuário: {msg}")
-        response = workflow.process(msg)
-        print(f"🏥 Assistente: {response}")

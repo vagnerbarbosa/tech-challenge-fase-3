@@ -97,6 +97,3 @@ def main():
         logger.error(f"Erro durante execução: {e}", exc_info=True)
         raise
 
-
-if __name__ == "__main__":
-    main()
