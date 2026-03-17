@@ -324,3 +324,49 @@ class MedicalRAG:
             "sources": source_counts,
             "data_dir": str(self.data_dir),
         }
+
+
+
+if __name__ == "__main__":
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+
+    print("=" * 60)
+    print("  MedicalRAG - Demonstração")
+    print("=" * 60)
+    print()
+
+    rag = MedicalRAG()
+
+    # Estatísticas do índice
+    stats = rag.get_stats()
+    print("[INFO] Estatísticas do RAG:")
+    print(f"  Total de documentos: {stats['total_documents']}")
+    print(f"  Tipo de índice: {stats['index_type']}")
+    print(f"  Diretório de dados: {stats['data_dir']}")
+    if stats.get("sources"):
+        print("  Fontes:")
+        for source, count in stats["sources"].items():
+            print(f"    - {source}: {count} documentos")
+    print()
+
+    # Busca de exemplo
+    test_queries = [
+        "diabetes tipo 2 tratamento",
+        "dor de cabeça sintomas",
+        "hipertensão arterial",
+    ]
+
+    for query in test_queries:
+        print(f"Busca: '{query}'")
+        results = rag.search(query, top_k=3)
+        if results:
+            for i, r in enumerate(results, 1):
+                title = r.get("title", r.get("source", "N/A"))
+                score = r.get("score", 0)
+                print(f"  {i}. [{score:.3f}] {title}")
+        else:
+            print("  Nenhum resultado encontrado.")
+        print()
+
+    print("[OK] Demonstração concluída.")

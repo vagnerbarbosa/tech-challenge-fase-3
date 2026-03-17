@@ -415,3 +415,51 @@ class PatientDatabase:
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
+
+
+
+if __name__ == "__main__":
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+
+    print("=" * 60)
+    print("  PatientDatabase - Demonstração")
+    print("=" * 60)
+    print()
+
+    db = PatientDatabase()
+
+    # Lista todos os pacientes
+    patients = db.list_patients_brief()
+    print(f"Total de pacientes na base: {len(patients)}")
+    print()
+    for p in patients:
+        print(f"  ID {p['id']:>2}: {p['nome']:<30} | Idade: {p['idade']} | Sexo: {p['sexo']}")
+    print()
+
+    # Detalhe de um paciente
+    if patients:
+        pid = patients[0]["id"]
+        patient = db.get_patient_by_id(pid)
+        if patient:
+            print(f"Detalhes do paciente ID {pid}:")
+            for k, v in patient.items():
+                print(f"  {k}: {v}")
+            print()
+
+        # Resumo clínico
+        summary = db.get_patient_summary(pid)
+        if summary:
+            print(f"Resumo clínico do paciente ID {pid}:")
+            print(summary[:500])
+            print()
+
+    # Busca por nome
+    search_name = "Maria"
+    results = db.search_patient_by_name(search_name)
+    print(f"Busca por nome '{search_name}': {len(results)} resultado(s)")
+    for r in results:
+        print(f"  - {r['nome']} (ID: {r['id']})")
+    print()
+
+    print("[OK] Demonstração concluída.")

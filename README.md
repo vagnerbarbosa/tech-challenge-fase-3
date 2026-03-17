@@ -322,20 +322,81 @@ python main.py
 
 ### Etapas Individuais
 
-Você pode executar cada módulo separadamente para debug ou teste:
+Você pode executar cada módulo separadamente para debug ou teste.
+Todos os módulos possuem blocos `if __name__ == "__main__"` com código de demonstração.
+
+> **Dica:** Execute sempre a partir da raiz do projeto usando `python -m`.
+
+#### 🔬 Fine-Tuning
 
 ```bash
-# 1. Preparação de dados
+# Preparação de dados (unifica JSONL, mostra estatísticas)
 python -m src.fine_tuning.data_preparation
 
-# 2. Treinamento do modelo
+# Treinamento do modelo (mostra configuração, verifica modelo existente)
 python -m src.fine_tuning.training
 
-# 3. Avaliação
+# Avaliação do modelo (informações do avaliador, prompt de exemplo)
 python -m src.fine_tuning.evaluation
+```
 
-# 4. Executar assistente
+#### 🕷️ Scraping
+
+```bash
+# Orquestrador de todos os scrapers
+python -m src.scraping.run_scrapers
+
+# Scrapers individuais (modo debug com max_items=10)
+python -m src.scraping.hcpa_scraper
+python -m src.scraping.telessaude_scraper
+python -m src.scraping.radreport_scraper
+```
+
+#### 🤖 LangChain Integration
+
+```bash
+# Assistente médico completo (lista pacientes, testa validação, processa mensagem)
 python -m src.langchain_integration.assistant
+
+# Chains do LangChain (demonstra QA chain)
+python -m src.langchain_integration.chains
+
+# Ferramentas médicas (emergência, especialidade, temperatura, dicas de saúde)
+python -m src.langchain_integration.tools
+
+# RAG - Busca semântica em protocolos médicos (estatísticas e busca de exemplo)
+python -m src.langchain_integration.rag
+```
+
+#### 🔄 LangGraph Flows
+
+```bash
+# Workflow médico (processa mensagens de teste pelo grafo de estados)
+python -m src.langgraph_flows.medical_workflow
+```
+
+#### 🛠️ Utilitários
+
+```bash
+# Sistema de logging (demonstra todos os níveis de log)
+python -m src.utils.logging_config
+
+# Validadores de segurança (testa validação de entrada e sanitização)
+python -m src.utils.validators
+```
+
+#### 🗄️ Base de Dados
+
+```bash
+# Base de prontuários simulados (lista pacientes, busca por nome, resumo clínico)
+python -m src.database.patient_records
+```
+
+#### 🧪 Testes
+
+```bash
+# Executa todos os testes
+python -m pytest tests/ -v
 ```
 
 ### 📁 Fluxo de Dados

@@ -307,3 +307,41 @@ Cuide-se bem! Estarei aqui sempre que precisar. 💙"""
             logger.error(f"Erro no workflow: {e}")
             return "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente."
 
+
+
+
+if __name__ == "__main__":
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+
+    print("=" * 60)
+    print("  MedicalWorkflow (LangGraph) - Demonstração")
+    print("=" * 60)
+    print()
+
+    workflow = MedicalWorkflow()
+
+    print("[INFO] MedicalWorkflow instanciado (sem assistente LLM).")
+    print()
+
+    # Mensagens de teste para cada tipo de classificação
+    test_messages = [
+        "Olá, bom dia!",
+        "Quais são os sintomas da dengue?",
+        "Estou com dor forte no peito e falta de ar",
+        "Minha pressão está 14/9 e temperatura 37.5°C",
+        "Obrigado pela ajuda, até logo!",
+        "Gostaria de saber sobre alimentação saudável",
+    ]
+
+    for msg in test_messages:
+        print(f"Entrada: '{msg}'")
+        try:
+            resp = workflow.process(msg)
+            print(f"Resposta: {resp[:200]}")
+        except Exception as e:
+            print(f"  Erro: {type(e).__name__}: {e}")
+        print("-" * 40)
+    print()
+
+    print("[OK] Demonstração concluída.")

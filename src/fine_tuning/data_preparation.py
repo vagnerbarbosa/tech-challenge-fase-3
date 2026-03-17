@@ -498,3 +498,37 @@ class DataPreparation:
             },
         ]
 
+
+
+
+if __name__ == "__main__":
+    """
+    Execução isolada do módulo de preparação de dados.
+    
+    Uso:
+        python -m src.fine_tuning.data_preparation
+    
+    Este script executa a pipeline completa de preparação:
+    1. Valida diretório data/raw/
+    2. Invoca scrapers se necessário
+    3. Carrega e unifica arquivos JSONL
+    4. Valida, limpa e anonimiza dados
+    5. Salva dataset unificado em data/processed/
+    """
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+    
+    print("=" * 60)
+    print("🔧 PREPARAÇÃO DE DADOS PARA FINE-TUNING")
+    print("=" * 60)
+    
+    dp = DataPreparation()
+    dataset = dp.prepare_dataset()
+    
+    print(f"\n✅ Dataset preparado com sucesso!")
+    print(f"   Total de exemplos: {len(dataset)}")
+    print(f"   Colunas: {dataset.column_names}")
+    if len(dataset) > 0:
+        print(f"\n📝 Exemplo (primeiro registro):")
+        print(f"   {dataset[0]['text'][:200]}...")
+    print(f"\n📁 Arquivo unificado salvo em: data/processed/medical_data_unified.jsonl")
