@@ -208,3 +208,61 @@ class MedicalTools:
         
         return tips
 
+
+
+
+if __name__ == "__main__":
+    """
+    Execução isolada das ferramentas médicas.
+    
+    Uso:
+        python -m src.langchain_integration.tools
+    
+    Demonstra as funcionalidades de triagem, detecção de emergência,
+    análise de temperatura e sugestão de especialidades.
+    """
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+    
+    print("=" * 60)
+    print("🔧 FERRAMENTAS MÉDICAS (MedicalTools)")
+    print("=" * 60)
+    
+    tools = MedicalTools()
+    
+    # Teste de detecção de emergência
+    print("\n--- Teste de Detecção de Emergência ---")
+    test_msgs = [
+        "Estou com dor no peito forte",
+        "Qual remédio tomar para gripe?",
+        "Meu pai desmaiou e está inconsciente",
+        "Como prevenir diabetes?",
+    ]
+    for msg in test_msgs:
+        is_emergency = tools.is_emergency_question(msg)
+        emoji = "🚨" if is_emergency else "✅"
+        print(f"  {emoji} \"{msg}\" -> Emergência: {is_emergency}")
+    
+    # Teste de sugestão de especialidade
+    print("\n--- Teste de Sugestão de Especialidade ---")
+    test_symptoms = [
+        "Estou com dor de cabeça frequente",
+        "Tenho coceira na pele",
+        "Sinto falta de ar ao caminhar",
+        "Estou muito ansioso e não consigo dormir",
+    ]
+    for symptom in test_symptoms:
+        specialty = tools.suggest_specialty(symptom)
+        print(f"  💡 \"{symptom}\" -> {specialty or 'Nenhuma sugestão'}")
+    
+    # Teste de temperatura
+    print("\n--- Teste de Interpretação de Temperatura ---")
+    test_temps = [34.5, 36.5, 37.5, 38.5, 40.0]
+    for temp in test_temps:
+        result = tools.interpret_temperature(temp)
+        print(f"  🌡️ {temp}°C -> {result['classification']} ({result['alert_level']})")
+    
+    # Dicas de saúde
+    print("\n--- Dicas Gerais de Saúde ---")
+    for tip in tools.get_general_health_tips()[:5]:
+        print(f"  ✅ {tip}")
