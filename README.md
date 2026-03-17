@@ -28,11 +28,15 @@ Desenvolver um assistente virtual médico generalista capaz de:
 | Requisito | Descrição | Status |
 |-----------|-----------|--------|
 | Fine-tuning LLM | Customização de LLaMA/Falcon para domínio médico | ✅ |
-| Integração LangChain | Orquestração de prompts e chains | 🔄 |
-| Fluxos LangGraph | Workflows automatizados | 🔄 |
-| Anonimização | Proteção de dados sensíveis (LGPD) | 🔄 |
+| Integração LangChain | Orquestração de prompts e chains | ✅ |
+| Fluxos LangGraph | Workflows automatizados | ✅ |
+| RAG | Busca semântica em protocolos médicos | ✅ |
+| Base de Prontuários | Dados simulados de pacientes (SQLite) | ✅ |
+| Explainability | Citação de fontes nas respostas | ✅ |
+| Anonimização | Proteção de dados sensíveis (LGPD) | ✅ |
 | Logging | Sistema de logs estruturado | ✅ |
 | Validação | Verificação de segurança das respostas | ✅ |
+| Documentação | Diagrama de fluxo + Relatório técnico | ✅ |
 
 ## 📁 Estrutura do Repositório
 
@@ -43,6 +47,9 @@ projeto_fase3/
 │   │   └── .gitkeep
 │   └── processed/                     # Dados processados e anonimizados
 │       └── .gitkeep
+├── docs/                              # Documentação técnica
+│   ├── diagrama_fluxo_langgraph.png   # Diagrama visual do workflow LangGraph
+│   └── relatorio_tecnico.md           # Relatório técnico completo do projeto
 ├── logs/                              # Logs do sistema (não versionados)
 │   └── .gitkeep
 ├── models/                            # Modelos treinados (não versionados)
@@ -51,19 +58,29 @@ projeto_fase3/
 │   └── .gitkeep
 ├── src/                               # Código fonte principal
 │   ├── __init__.py                    # Inicializador do pacote src
+│   ├── database/                      # Base de dados simulada
+│   │   ├── __init__.py                # Exports: PatientDatabase
+│   │   └── patient_records.py         # Prontuários médicos fictícios (SQLite)
 │   ├── fine_tuning/                   # Pipeline de fine-tuning do LLM
 │   │   ├── __init__.py                # Exports: DataPreparation, ModelTrainer, ModelEvaluator
 │   │   ├── data_preparation.py        # Pré-processamento e anonimização de dados médicos
 │   │   ├── training.py                # Treinamento do modelo com LoRA/PEFT
 │   │   └── evaluation.py              # Avaliação de qualidade do modelo
 │   ├── langchain_integration/         # Integração com LangChain
-│   │   ├── __init__.py                # Exports: MedicalAssistant, MedicalChains, MedicalTools
-│   │   ├── assistant.py               # Assistente médico principal
+│   │   ├── __init__.py                # Exports: MedicalAssistant, MedicalChains, MedicalTools, MedicalRAG
+│   │   ├── assistant.py               # Assistente médico principal (com RAG e citações)
 │   │   ├── chains.py                  # Chains de Q&A médico
+│   │   ├── rag.py                     # Sistema RAG - busca semântica em protocolos
 │   │   └── tools.py                   # Ferramentas: emergência, temperatura, especialidades
 │   ├── langgraph_flows/               # Fluxos automatizados com LangGraph
 │   │   ├── __init__.py                # Exports: MedicalWorkflow
 │   │   └── medical_workflow.py        # Workflow de conversação médica
+│   ├── scraping/                      # Web scrapers de dados médicos
+│   │   ├── base_scraper.py            # Classe base para scrapers
+│   │   ├── hcpa_scraper.py            # Scraper CONITEC/MS
+│   │   ├── telessaude_scraper.py      # Scraper TelessaúdeRS
+│   │   ├── radreport_scraper.py       # Scraper RadReport/RSNA
+│   │   └── run_scrapers.py            # Orquestrador de scrapers
 │   └── utils/                         # Utilitários do projeto
 │       ├── __init__.py                # Exports: setup_logging, get_logger, DataValidator, InputValidator
 │       ├── logging_config.py          # Configuração centralizada de logs
@@ -438,6 +455,107 @@ O assistente pode fornecer informações educativas sobre:
 - **Emergências**: reconhecimento de sinais de alerta
 - **Medicamentos**: informações gerais (não substituindo prescrição)
 - **Encaminhamentos**: orientação sobre especialidades médicas
+
+## 🗄️ Base de Dados Simulada de Prontuários
+
+O projeto inclui uma base de dados simulada com prontuários médicos fictícios, implementada em SQLite (`src/database/patient_records.py`).
+
+### Dados Disponíveis
+
+A base contém **5 pacientes fictícios** com informações completas:
+
+| ID | Paciente | Idade | Condições Principais |
+|----|----------|-------|---------------------|
+| 1 | Maria Silva Santos | 45 | Hipertensão, Diabetes tipo 2, Dislipidemia |
+| 2 | João Pedro Oliveira | 62 | Pós-IAM, IC classe II, Ex-tabagista |
+| 3 | Ana Beatriz Costa | 28 | Asma moderada, Rinite alérgica, Ansiedade |
+| 4 | Carlos Eduardo Ferreira | 55 | DM2, Obesidade, Esteatose hepática, Gota |
+| 5 | Lucia Helena Rodrigues | 72 | Osteoporose, Hipotireoidismo, Artrose |
+
+Cada prontuário inclui: histórico médico, medicações em uso, alergias, exames recentes e consultas anteriores.
+
+### Uso da Base de Prontuários
+
+```python
+from src.database.patient_records import PatientDatabase
+
+db = PatientDatabase()
+
+# Listar pacientes
+pacientes = db.list_patients_brief()
+
+# Consultar prontuário completo
+prontuario = db.get_patient_by_id(1)
+
+# Buscar por nome
+resultados = db.search_patient_by_name("Maria")
+
+# Gerar resumo para injeção no LLM
+resumo = db.get_patient_summary(1)
+```
+
+---
+
+## 🔍 Sistema RAG (Retrieval-Augmented Generation)
+
+O sistema RAG (`src/langchain_integration/rag.py`) indexa os protocolos médicos coletados pelos scrapers e permite busca semântica para enriquecer as respostas do assistente.
+
+### Como Funciona
+
+1. **Indexação:** Os arquivos JSONL em `data/raw/` são carregados e indexados
+2. **Busca:** Quando o usuário faz uma pergunta, o RAG busca documentos relevantes
+3. **Contextualização:** O contexto recuperado é injetado no prompt do LLM
+4. **Citação:** As fontes consultadas são citadas na resposta
+
+### Métodos de Busca
+
+| Método | Quando Usado | Requisitos |
+|--------|-------------|------------|
+| **TF-IDF** (padrão) | Ambiente sem GPU | scikit-learn |
+| **Embeddings** | Melhor qualidade | sentence-transformers |
+| **Keywords** | Fallback mínimo | Nenhum extra |
+
+### Exemplo de Uso com RAG e Citações
+
+```python
+from src.langchain_integration.assistant import MedicalAssistant
+
+# Inicializar assistente com RAG e paciente
+assistant = MedicalAssistant(enable_rag=True, patient_id=1)
+
+# Processar pergunta (RAG busca protocolos automaticamente)
+resposta = assistant.process_message("Quais cuidados para diabetes?")
+print(resposta)
+# Saída inclui resposta + citações:
+# "Para o controle do diabetes mellitus tipo 2..."
+#
+# 📚 **Fontes consultadas:**
+#   [1] CONITEC/MS - Protocolo Clínico e Diretrizes Terapêuticas do Diabetes
+#   [2] TelessaúdeRS - Manejo do diabetes na APS
+#   [3] Prontuário do Paciente - Base de dados interna de prontuários
+```
+
+### Estatísticas do RAG
+
+```python
+from src.langchain_integration.rag import MedicalRAG
+
+rag = MedicalRAG()
+print(rag.get_stats())
+# {'total_documents': 100, 'index_type': 'tfidf', 'sources': {...}}
+```
+
+---
+
+## 📊 Diagrama de Fluxo
+
+O diagrama do workflow LangGraph está disponível em `docs/diagrama_fluxo_langgraph.png`:
+
+![Diagrama de Fluxo LangGraph](docs/diagrama_fluxo_langgraph.png)
+
+Para mais detalhes sobre a arquitetura, consulte o [Relatório Técnico](docs/relatorio_tecnico.md).
+
+---
 
 ## 📝 Licença
 
