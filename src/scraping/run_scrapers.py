@@ -148,3 +148,7 @@ def run_all_scrapers(
     
     return results
 
+
+
+if __name__ == "__main__":
+    run_all_scrapers()
