@@ -133,3 +133,36 @@ Resumo:"""
             "chat_history": chat_history or [],
         })
 
+
+
+
+if __name__ == "__main__":
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+
+    print("=" * 60)
+    print("  MedicalChains - Demonstração")
+    print("=" * 60)
+    print()
+
+    chains = MedicalChains()
+
+    print("[INFO] MedicalChains instanciado (sem modelo LLM).")
+    print()
+
+    # Demonstra obtenção de resposta (fallback sem modelo)
+    test_questions = [
+        "Quais são os sintomas da gripe?",
+        "Como tratar dor de cabeça?",
+    ]
+
+    for q in test_questions:
+        print(f"Pergunta: {q}")
+        try:
+            resp = chains.get_qa_response(q)
+            print(f"Resposta: {resp}")
+        except Exception as e:
+            print(f"  (Esperado sem LLM) Erro: {type(e).__name__}: {e}")
+        print()
+
+    print("[OK] Demonstração concluída.")

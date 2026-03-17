@@ -190,3 +190,37 @@ class ModelEvaluator:
         
         return metrics
 
+
+
+
+if __name__ == "__main__":
+    """
+    Execução isolada do módulo de avaliação.
+    
+    Uso:
+        python -m src.fine_tuning.evaluation
+    
+    Exibe informações sobre o avaliador e exemplos de uso.
+    Nota: requer modelo e tokenizer carregados para avaliação completa.
+    """
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+    
+    print("=" * 60)
+    print("📊 MÓDULO DE AVALIAÇÃO DO MODELO")
+    print("=" * 60)
+    
+    print("\nO ModelEvaluator requer um modelo e tokenizer carregados.")
+    print("Para avaliação completa, execute via pipeline principal:\n")
+    print("   python main.py\n")
+    print("Ou integre via código:")
+    print("   from src.fine_tuning.evaluation import ModelEvaluator")
+    print("   evaluator = ModelEvaluator(model, tokenizer)")
+    print("   metrics = evaluator.evaluate(dataset)")
+    print("\nMétricas disponíveis:")
+    print("   - Perplexidade (calculate_perplexity)")
+    print("   - Qualidade de Q&A (evaluate_qa_quality)")
+    print("   - Geração de respostas (generate_response)")
+    
+    print("\n📝 Exemplo de prompt BioMistral:")
+    print(ModelEvaluator.format_biomistral_prompt(None, "Quais os sintomas da gripe?"))

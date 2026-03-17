@@ -618,3 +618,41 @@ class HCPAScraper(BaseScraper):
         finally:
             self.close()
 
+
+
+
+if __name__ == "__main__":
+    """
+    Execução isolada do scraper de protocolos médicos CONITEC/MS.
+    
+    Uso:
+        python -m src.scraping.hcpa_scraper
+    
+    Coleta protocolos clínicos e diretrizes terapêuticas e salva em data/raw/protocolos_medicos.jsonl
+    """
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+    
+    print("=" * 60)
+    print("🏥 SCRAPER DE PROTOCOLOS MÉDICOS (CONITEC/MS)")
+    print("=" * 60)
+    
+    scraper = HCPAScraper(max_items=10)
+    print(f"\nColetando protocolos (limite: 10 para debug)...")
+    
+    filepath = scraper.run()
+    
+    if filepath:
+        print(f"\n✅ Arquivo gerado: {filepath}")
+        # Mostra amostra dos dados
+        import json
+        with open(filepath, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        print(f"   Total de registros: {len(lines)}")
+        if lines:
+            sample = json.loads(lines[0])
+            print(f"\n📝 Primeiro registro:")
+            print(f"   Instrução: {sample.get('instruction', '')[:80]}...")
+            print(f"   Saída: {sample.get('output', '')[:80]}...")
+    else:
+        print("❌ Nenhum dado foi gerado.")
