@@ -328,3 +328,43 @@ class ModelTrainer:
         """
         return self.output_dir / "final_model"
 
+
+
+
+if __name__ == "__main__":
+    """
+    Execução isolada do módulo de treinamento.
+    
+    Uso:
+        python -m src.fine_tuning.training
+    
+    Exibe informações sobre a configuração de treinamento
+    e verifica se existe modelo treinado previamente.
+    """
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+    
+    print("=" * 60)
+    print("🏋️ MÓDULO DE TREINAMENTO (Fine-tuning)")
+    print("=" * 60)
+    
+    trainer = ModelTrainer()
+    
+    print(f"\n📋 Configuração atual:")
+    print(f"   Modelo base: {trainer.model_name}")
+    print(f"   Diretório de saída: {trainer.output_dir}")
+    print(f"   Device: {trainer.device}")
+    print(f"   Max seq length: {trainer.max_seq_length}")
+    print(f"   Batch size: {trainer.batch_size}")
+    print(f"   Learning rate: {trainer.learning_rate}")
+    print(f"   Num epochs: {trainer.num_epochs}")
+    
+    has_model = trainer._check_existing_model()
+    print(f"\n🔍 Modelo existente: {'✅ Sim' if has_model else '❌ Não'}")
+    print(f"   Caminho: {trainer.get_model_path()}")
+    
+    print(f"\n💡 Para treinar, use no pipeline completo:")
+    print(f"   python main.py")
+    print(f"\n   Ou integre via código:")
+    print(f"   trainer = ModelTrainer()")
+    print(f"   model, tokenizer = trainer.train(dataset)")

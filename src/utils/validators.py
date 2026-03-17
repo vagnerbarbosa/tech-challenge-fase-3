@@ -178,3 +178,62 @@ class DataValidator:
         
         return True, "OK"
 
+
+
+
+if __name__ == "__main__":
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+
+    print("=" * 60)
+    print("  Validators - Demonstração")
+    print("=" * 60)
+    print()
+
+    # === InputValidator ===
+    print("--- InputValidator ---")
+    validator = InputValidator()
+
+    test_cases = [
+        ("Quais são os sintomas da gripe?", True),
+        ("", False),
+        ("ab", False),
+        ("x" * 2500, False),
+        ("<script>alert('xss')</script>", False),
+        ("SELECT * FROM users; DROP TABLE--", False),
+        ("Dor de cabeça constante há 3 dias", True),
+    ]
+
+    for text, expected_valid in test_cases:
+        display = text[:60] + "..." if len(text) > 60 else text
+        valid, msg = validator.validate_query(text)
+        status = "✓" if valid == expected_valid else "✗ INESPERADO"
+        print(f"  {status} '{display}' -> válido={valid}, msg='{msg}'")
+    print()
+
+    # Teste de sanitização
+    print("Sanitização de texto:")
+    dirty = "  Olá <b>doutor</b>, estou com febre!  "
+    clean = validator.sanitize_input(dirty)
+    print(f"  Entrada: '{dirty}'")
+    print(f"  Saída:   '{clean}'")
+    print()
+
+    # === DataValidator ===
+    print("--- DataValidator ---")
+    data_validator = DataValidator()
+
+    sample_record = {
+        "instruction": "Quais são os sintomas da diabetes tipo 2?",
+        "output": "Os sintomas da diabetes tipo 2 incluem sede excessiva, "
+                  "micção frequente, fadiga, visão turva e perda de peso.",
+    }
+    valid, msg = data_validator.validate_medical_record(sample_record)
+    print(f"  Registro válido: válido={valid}, msg='{msg}'")
+
+    bad_record = {"instruction": "X", "output": "Y"}
+    valid, msg = data_validator.validate_medical_record(bad_record)
+    print(f"  Registro inválido: válido={valid}, msg='{msg}'")
+    print()
+
+    print("[OK] Demonstração concluída.")

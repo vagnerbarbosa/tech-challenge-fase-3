@@ -70,3 +70,30 @@ def get_logger(name: str) -> logging.Logger:
     """
     return logging.getLogger(name)
 
+
+
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("  Logging Config - Demonstração")
+    print("=" * 60)
+    print()
+
+    # Configura logging
+    setup_logging(log_level="DEBUG")
+
+    logger = get_logger("demo")
+
+    print("Testando níveis de log:")
+    logger.debug("Mensagem de DEBUG - detalhes internos")
+    logger.info("Mensagem de INFO - operação normal")
+    logger.warning("Mensagem de WARNING - atenção necessária")
+    logger.error("Mensagem de ERROR - erro recuperável")
+    logger.critical("Mensagem de CRITICAL - erro grave")
+    print()
+
+    # Testa logger com nome de módulo
+    logger2 = get_logger("src.langchain_integration.assistant")
+    logger2.info("Logger com nome de módulo funcionando")
+
+    print("[OK] Sistema de logging configurado e funcionando.")

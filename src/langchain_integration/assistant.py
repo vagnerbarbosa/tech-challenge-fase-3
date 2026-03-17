@@ -280,3 +280,55 @@ Este assistente não substitui atendimento médico de emergência.
         if self.patient_db:
             return self.patient_db.list_patients_brief()
         return []
+
+
+
+if __name__ == "__main__":
+    from src.utils.logging_config import setup_logging
+    setup_logging()
+
+    print("=" * 60)
+    print("  MedicalAssistant - Demonstração")
+    print("=" * 60)
+    print()
+
+    assistant = MedicalAssistant()
+
+    print("[INFO] MedicalAssistant instanciado (sem modelo LLM).")
+    print()
+
+    # Lista pacientes disponíveis
+    patients = assistant.list_patients()
+    if patients:
+        print(f"Pacientes na base de dados ({len(patients)}):")
+        for p in patients:
+            print(f"  - ID {p.get('id')}: {p.get('nome')} (Idade: {p.get('idade')}, Sexo: {p.get('sexo')})")
+    else:
+        print("Nenhum paciente encontrado na base de dados.")
+    print()
+
+    # Testa validação de entrada
+    test_inputs = [
+        "Quais são os sintomas da diabetes?",
+        "",
+        "x" * 3000,
+    ]
+
+    print("Teste de validação de entradas:")
+    for inp in test_inputs:
+        valid, msg = assistant.validate_input(inp)
+        display = inp[:50] + "..." if len(inp) > 50 else inp
+        print(f"  '{display}' -> válido={valid}, msg='{msg}'")
+    print()
+
+    # Processa mensagem de teste (resposta padrão sem LLM)
+    test_msg = "Olá, estou com dor de cabeça há dois dias."
+    print(f"Mensagem de teste: '{test_msg}'")
+    try:
+        resp = assistant.process_message(test_msg)
+        print(f"Resposta: {resp[:200]}...")
+    except Exception as e:
+        print(f"  (Esperado sem LLM) Erro: {type(e).__name__}: {e}")
+    print()
+
+    print("[OK] Demonstração concluída.")
