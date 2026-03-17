@@ -155,18 +155,3 @@ Este assistente não substitui atendimento médico de emergência."""
             for msg in history
         ]
 
-
-if __name__ == "__main__":
-    # Teste básico do assistente generalista
-    assistant = MedicalAssistant()
-    
-    test_questions = [
-        "Quais são os sintomas de uma gripe?",
-        "Quando devo procurar um médico?",
-        "Estou com dor forte no peito e dificuldade para respirar",
-    ]
-    
-    for question in test_questions:
-        print(f"\n👤 Usuário: {question}")
-        response = assistant.process_message(question)
-        print(f"🏥 Assistente: {response}")

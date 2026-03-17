@@ -328,13 +328,3 @@ class ModelTrainer:
         """
         return self.output_dir / "final_model"
 
-
-if __name__ == "__main__":
-    # Teste do módulo
-    from src.fine_tuning.data_preparation import DataPreparation
-    
-    prep = DataPreparation()
-    dataset = prep.prepare_dataset()
-    
-    trainer = ModelTrainer()
-    model, tokenizer = trainer.train(dataset)
