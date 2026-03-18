@@ -1,0 +1,282 @@
+2026-03-18 18:59:01 | INFO     | src.utils.logging_config | Logging configurado. Arquivo: logs/medical_assistant_20260318.log
+2026-03-18 18:59:01 | INFO     | src.utils.validators | DataValidator inicializado
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | DataPreparation inicializado
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation |   Dados brutos: /kaggle/working/tech-challenge-fase-3/data/raw
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation |   Dados processados: /kaggle/working/tech-challenge-fase-3/data/processed
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | Iniciando preparação do dataset...
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | VALIDAÇÃO DO DIRETÓRIO DE DADOS
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:01 | WARNING  | src.fine_tuning.data_preparation | Diretório vazio: /kaggle/working/tech-challenge-fase-3/data/raw
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | Dados inválidos ou ausentes. Iniciando processo de recuperação...
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | Limpando diretório data/raw/...
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | Limpeza concluída
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | INVOCANDO SCRAPERS
+2026-03-18 18:59:01 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:02 | INFO     | src.fine_tuning.data_preparation | Executando scrapers de dados médicos...
+2026-03-18 18:59:02 | INFO     | src.utils.logging_config | Logging configurado. Arquivo: logs/medical_assistant_20260318.log
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | ============================================================
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | Web Scraping de Dados Médicos
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | ============================================================
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | Início: 2026-03-18 18:59:02
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | Limites configurados: HCPA=50, TelessaúdeRS=30, RadReport=20
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | 
+--------------------------------------------------
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | 🏥 1/3 - Coletando Protocolos do HCPA...
+2026-03-18 18:59:02 | INFO     | src.scraping.run_scrapers | --------------------------------------------------
+2026-03-18 18:59:02 | INFO     | src.scraping.base_scraper | HCPAScraper inicializado. Output: data/raw, max_items: 50
+2026-03-18 18:59:02 | INFO     | src.scraping.hcpa_scraper | HCPAScraper inicializado para coleta de protocolos médicos do Ministério da Saúde
+2026-03-18 18:59:02 | INFO     | src.scraping.hcpa_scraper | Iniciando scraping de protocolos médicos...
+2026-03-18 18:59:02 | INFO     | src.scraping.hcpa_scraper | Acessando: https://www.gov.br/conitec/pt-br/assuntos/avaliacao-de-tecnologias-em-saude/protocolos-clinicos-e-diretrizes-terapeuticas
+2026-03-18 18:59:05 | INFO     | src.scraping.hcpa_scraper | Extraídos 492 protocolos da página web
+2026-03-18 18:59:05 | INFO     | src.scraping.hcpa_scraper | Total de protocolos válidos: 183
+2026-03-18 18:59:05 | INFO     | src.scraping.base_scraper | Aplicando limite de 50 itens (total coletado: 183)
+2026-03-18 18:59:05 | INFO     | src.scraping.base_scraper | Dados salvos em data/raw/protocolos_medicos.jsonl (50 registros)
+2026-03-18 18:59:05 | INFO     | src.scraping.run_scrapers | ✅ Protocolos salvos em: data/raw/protocolos_medicos.jsonl
+2026-03-18 18:59:05 | INFO     | src.scraping.run_scrapers | 
+--------------------------------------------------
+2026-03-18 18:59:05 | INFO     | src.scraping.run_scrapers | 📞 2/3 - Coletando FAQs do TelessaúdeRS...
+2026-03-18 18:59:05 | INFO     | src.scraping.run_scrapers | --------------------------------------------------
+2026-03-18 18:59:05 | INFO     | src.scraping.base_scraper | TelessaudeScraper inicializado. Output: data/raw, max_items: 30
+2026-03-18 18:59:05 | INFO     | src.scraping.telessaude_scraper | TelessaudeScraper inicializado para coleta de FAQs médicas
+2026-03-18 18:59:05 | INFO     | src.scraping.telessaude_scraper | Iniciando scraping de FAQs do TelessaúdeRS...
+2026-03-18 18:59:05 | INFO     | src.scraping.telessaude_scraper | Acessando: https://www.ufrgs.br/telessauders/materiais-perguntas/
+2026-03-18 18:59:08 | INFO     | src.scraping.telessaude_scraper | Acessando: https://www.ufrgs.br/telessauders/materiais-teleconduta/
+2026-03-18 18:59:11 | INFO     | src.scraping.telessaude_scraper | Total de FAQs coletadas: 15
+2026-03-18 18:59:11 | INFO     | src.scraping.base_scraper | Dados salvos em data/raw/perguntas_frequentes.jsonl (15 registros)
+2026-03-18 18:59:11 | INFO     | src.scraping.run_scrapers | ✅ FAQs salvas em: data/raw/perguntas_frequentes.jsonl
+2026-03-18 18:59:11 | INFO     | src.scraping.run_scrapers | 
+--------------------------------------------------
+2026-03-18 18:59:11 | INFO     | src.scraping.run_scrapers | 📋 3/3 - Coletando Modelos de Laudos do RadReport...
+2026-03-18 18:59:11 | INFO     | src.scraping.run_scrapers | --------------------------------------------------
+2026-03-18 18:59:11 | INFO     | src.scraping.base_scraper | RadReportScraper inicializado. Output: data/raw, max_items: 20
+2026-03-18 18:59:11 | INFO     | src.scraping.radreport_scraper | RadReportScraper inicializado para coleta de modelos de laudos
+2026-03-18 18:59:11 | INFO     | src.scraping.radreport_scraper | Iniciando scraping de modelos de laudos do RadReport...
+2026-03-18 18:59:11 | INFO     | src.scraping.radreport_scraper | Acessando: https://radreport.org/home/50
+2026-03-18 18:59:13 | INFO     | src.scraping.radreport_scraper | Acessando: https://radreport.org/templates
+2026-03-18 18:59:15 | INFO     | src.scraping.radreport_scraper | Total de modelos de laudos coletados: 12
+2026-03-18 18:59:15 | INFO     | src.scraping.base_scraper | Dados salvos em data/raw/modelos_laudos.jsonl (12 registros)
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | ✅ Modelos de laudos salvos em: data/raw/modelos_laudos.jsonl
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | 
+============================================================
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | SUMÁRIO DA EXECUÇÃO
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | ============================================================
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | 
+📁 Arquivos gerados:
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers |    - protocolos_medicos: data/raw/protocolos_medicos.jsonl
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers |    - perguntas_frequentes: data/raw/perguntas_frequentes.jsonl
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers |    - modelos_laudos: data/raw/modelos_laudos.jsonl
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | 
+✅ Todos os scrapers executados com sucesso!
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | 
+Fim: 2026-03-18 18:59:15
+2026-03-18 18:59:15 | INFO     | src.scraping.run_scrapers | ============================================================
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ✓ Scrapers executados com sucesso! 3 arquivo(s) gerado(s)
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | VALIDAÇÃO DO DIRETÓRIO DE DADOS
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   ✓ perguntas_frequentes.jsonl: 15 linhas
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   ✓ modelos_laudos.jsonl: 12 linhas
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   ✓ protocolos_medicos.jsonl: 50 linhas
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Validação concluída: 3 arquivo(s) JSONL válido(s)
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | CARREGANDO ARQUIVOS JSONL
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Diretório: /kaggle/working/tech-challenge-fase-3/data/raw
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Arquivos encontrados: 3
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   ✓ modelos_laudos.jsonl: 12 registros carregados
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   ✓ perguntas_frequentes.jsonl: 15 registros carregados
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   ✓ protocolos_medicos.jsonl: 50 registros carregados
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ------------------------------------------------------------
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Total unificado: 77 registros
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Registros após validação: 77 (removidos: 0)
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | ✓ JSONL unificado salvo: /kaggle/working/tech-challenge-fase-3/data/processed/medical_data_unified.jsonl
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation |   Total de registros: 77
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Dataset preparado para treinamento: 77 exemplos
+2026-03-18 18:59:15 | INFO     | src.fine_tuning.data_preparation | Preparação do dataset concluída!
+2026-03-18 18:59:32 | INFO     | src.database.patient_records | Base populada com 5 prontuários fictícios
+2026-03-18 18:59:32 | INFO     | src.database.patient_records | PatientDatabase inicializado em: /kaggle/working/tech-challenge-fase-3/src/database/prontuarios.db
+2026-03-18 19:00:27 | INFO     | src.fine_tuning.training | ModelTrainer inicializado. Device: cuda
+2026-03-18 19:00:27 | INFO     | src.fine_tuning.training | Modelo base: BioMistral/BioMistral-7B
+2026-03-18 19:00:27 | INFO     | src.fine_tuning.training | Iniciando processo de treinamento...
+2026-03-18 19:00:27 | INFO     | src.fine_tuning.training | Carregando modelo: BioMistral/BioMistral-7B
+2026-03-18 19:01:37 | INFO     | src.fine_tuning.training | Parâmetros treináveis: 13,631,488 / 7,255,363,584 (0.19%)
+2026-03-18 19:01:37 | INFO     | src.fine_tuning.training | Executando treinamento...
+2026-03-18 19:05:34 | INFO     | src.fine_tuning.training | Modelo salvo em: models/final_model
+2026-03-18 19:05:34 | INFO     | src.fine_tuning.evaluation | ModelEvaluator inicializado (Max Seq: 2048)
+2026-03-18 19:05:34 | INFO     | src.fine_tuning.evaluation | Iniciando avaliação do modelo médico generalista...
+2026-03-18 19:05:34 | INFO     | src.fine_tuning.evaluation | Calculando perplexidade...
+2026-03-18 19:06:09 | INFO     | src.fine_tuning.evaluation | Perplexidade: 2.18
+2026-03-18 19:06:09 | INFO     | src.fine_tuning.evaluation | Testando geração de respostas médicas...
+2026-03-18 19:06:43 | INFO     | src.fine_tuning.evaluation | 
+Pergunta: Como estruturar um laudo de RM de Coluna Lombar?
+2026-03-18 19:06:43 | INFO     | src.fine_tuning.evaluation | Resposta:  Protocolo: Estruturação do Laudo de Imagem Média (RM) da coluna lombar.
+
+Diretrizes Clínicas: Indicações, contraindicações e resultados finais.
+
+Resposta:
+Protocolo: Estruturação do Laudo de Imagem Média (RM) da coluna lombar.
+
+Indicações: Doença vertebral, artrite degenerativa, tumor, infecção, trauma, radiculopatias, neuropatias periféricas, síndrome pélvica.
+
+Contraindicações: Pacientes com implantes metálicos ou não compatíveis com ressonância magnética.
+
+Resultado final: 1 - Normal; 2 - Anormalidades morfológicas; 3 - Sinais inflamatórios; 4 - Lesões neoplásicas; 5 - Outras lesões especificadas.
+
+### Contexto:
+Especialidade: Radiologia / Neurologia
+
+### Resposta:
+Protocolo:
+2026-03-18 19:07:04 | INFO     | src.fine_tuning.evaluation | 
+Pergunta: Quais exames devo solicitar na investigação inicial de anemia?
+2026-03-18 19:07:04 | INFO     | src.fine_tuning.evaluation | Resposta:  Protocolo para avaliação etiológica da anemia em adultos. Solicitações obrigatórias: hemoglobina, hematócrito, teste eritrocíteo (celularidade), reticulócitos, ferro sérico, transferrina, vitamina B12, folato, sorologias autoimunes, coagulação sérica, eletrólito sódio, creatinina, biópsia óssea se necessário. Diretrizes terapêuticas: transfusão sanguínea, suplementação com ferro, vitaminas B12 e folato, tratamento específico das causas subjacentes.
+2026-03-18 19:07:37 | INFO     | src.fine_tuning.evaluation | 
+Pergunta: Quais são as diretrizes do protocolo de Acidentes Escorpiônicos?
+2026-03-18 19:07:37 | INFO     | src.fine_tuning.evaluation | Resposta:  Protocolo Clínico e Diretrizes Terapêuticas para Envenenamento por Artrópodes da Família Buthidae no Brasil. Indicações, tratamentos e medidas preventivas. Versão 2019. Ministério da Saúde / Instituto Nacional de Controle de Qualidade em Saúde.
+
+### Contexto
+Especialidades: Medicina Geral | Toxicologia Médica
+
+### Resposta:
+Protocolo Clínico e Diretrizes Terapêuticas para envenenamento por artrópode da família Buthidae no Brasil. Indicações, tratamentos e medidas preventivas. Versão 2019. Ministério da Saúde / Instituto Nacional de Controle de Qualidade em Saúde.
+
+### Instrução:
+Protocolo Clínico e Diretrizes Terapêuticas para envenenamento por artrópode da família Buthidae no Brasil. Indicações, tratamentos e medidas preventivas. Versão 2019. Ministério da
+2026-03-18 19:07:37 | INFO     | src.fine_tuning.evaluation | 
+Avaliação do assistente médico generalista concluída!
+2026-03-18 19:08:03 | INFO     | src.langchain_integration.rag | Carregados 77 documentos de 3 arquivos
+2026-03-18 19:08:03 | INFO     | src.langchain_integration.rag | Índice TF-IDF criado com sucesso
+2026-03-18 19:08:03 | INFO     | src.langchain_integration.rag | MedicalRAG inicializado com 77 documentos. Método: TF-IDF
+2026-03-18 19:08:16 | INFO     | src.utils.validators | InputValidator inicializado
+2026-03-18 19:08:16 | INFO     | src.langchain_integration.chains | MedicalChains inicializado para assistente generalista
+2026-03-18 19:08:16 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 19:08:16 | INFO     | src.database.patient_records | PatientDatabase inicializado em: /kaggle/working/tech-challenge-fase-3/src/database/prontuarios.db
+2026-03-18 19:08:16 | INFO     | src.langchain_integration.assistant | Base de prontuários inicializada
+2026-03-18 19:08:16 | INFO     | src.langchain_integration.assistant | MedicalAssistant (BioMistral) inicializado
+2026-03-18 19:08:16 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 19:08:16 | INFO     | src.langgraph_flows.medical_workflow | MedicalWorkflow (Generalista) inicializado
+2026-03-18 19:08:16 | WARNING  | src.langchain_integration.tools | Possível emergência detectada: 'dor no peito'
+2026-03-18 19:08:52 | INFO     | src.utils.validators | InputValidator inicializado
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.chains | MedicalChains inicializado para assistente generalista
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.rag | Carregados 77 documentos de 3 arquivos
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.rag | Índice TF-IDF criado com sucesso
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.rag | MedicalRAG inicializado com 77 documentos. Método: TF-IDF
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.assistant | RAG inicializado: {'total_documents': 77, 'index_type': 'tfidf', 'sources': {'TelessaúdeRS-UFRGS': 15, 'RadReport-RSNA': 12, 'CONITEC/MS': 50}, 'data_dir': 'data/raw'}
+2026-03-18 19:08:52 | INFO     | src.database.patient_records | PatientDatabase inicializado em: /kaggle/working/tech-challenge-fase-3/src/database/prontuarios.db
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.assistant | Base de prontuários inicializada
+2026-03-18 19:08:52 | INFO     | src.langchain_integration.assistant | MedicalAssistant (BioMistral) inicializado
+2026-03-18 19:10:20 | WARNING  | src.langchain_integration.tools | Possível emergência detectada: 'dor no peito'
+2026-03-18 19:28:16 | INFO     | src.utils.logging_config | Logging configurado. Arquivo: logs/medical_assistant_20260318.log
+2026-03-18 19:28:16 | INFO     | src.utils.validators | DataValidator inicializado
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | DataPreparation inicializado
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   Dados brutos: /kaggle/working/tech-challenge-fase-3/data/raw
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   Dados processados: /kaggle/working/tech-challenge-fase-3/data/processed
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Iniciando preparação do dataset...
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | VALIDAÇÃO DO DIRETÓRIO DE DADOS
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   ✓ perguntas_frequentes.jsonl: 15 linhas
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   ✓ protocolos_medicos.jsonl: 50 linhas
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   ✓ modelos_laudos.jsonl: 12 linhas
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Validação concluída: 3 arquivo(s) JSONL válido(s)
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ✓ Dados válidos encontrados em data/raw/
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | CARREGANDO ARQUIVOS JSONL
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ============================================================
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Diretório: /kaggle/working/tech-challenge-fase-3/data/raw
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Arquivos encontrados: 3
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   ✓ modelos_laudos.jsonl: 12 registros carregados
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   ✓ perguntas_frequentes.jsonl: 15 registros carregados
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   ✓ protocolos_medicos.jsonl: 50 registros carregados
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ------------------------------------------------------------
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Total unificado: 77 registros
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Registros após validação: 77 (removidos: 0)
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | ✓ JSONL unificado salvo: /kaggle/working/tech-challenge-fase-3/data/processed/medical_data_unified.jsonl
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation |   Total de registros: 77
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Dataset preparado para treinamento: 77 exemplos
+2026-03-18 19:28:16 | INFO     | src.fine_tuning.data_preparation | Preparação do dataset concluída!
+2026-03-18 19:28:34 | INFO     | src.database.patient_records | PatientDatabase inicializado em: /kaggle/working/tech-challenge-fase-3/src/database/prontuarios.db
+2026-03-18 19:29:17 | INFO     | src.fine_tuning.training | ModelTrainer inicializado. Device: cuda
+2026-03-18 19:29:17 | INFO     | src.fine_tuning.training | Modelo base: BioMistral/BioMistral-7B
+2026-03-18 19:29:17 | INFO     | src.fine_tuning.training | Iniciando processo de treinamento...
+2026-03-18 19:29:17 | INFO     | src.fine_tuning.training | Modelo existente encontrado em: models/final_model
+2026-03-18 19:29:25 | INFO     | src.fine_tuning.training | Usuário escolheu usar o modelo existente
+2026-03-18 19:29:25 | INFO     | src.fine_tuning.training | Pulando treinamento - usando modelo existente
+2026-03-18 19:29:25 | INFO     | src.fine_tuning.training | Carregando modelo existente de: models/final_model
+2026-03-18 19:31:04 | INFO     | src.fine_tuning.training | Modelo existente com LoRA carregado com sucesso!
+2026-03-18 19:31:04 | INFO     | src.fine_tuning.evaluation | ModelEvaluator inicializado (Max Seq: 2048)
+2026-03-18 19:31:04 | INFO     | src.fine_tuning.evaluation | Iniciando avaliação do modelo médico generalista...
+2026-03-18 19:31:04 | INFO     | src.fine_tuning.evaluation | Calculando perplexidade...
+2026-03-18 19:32:16 | INFO     | src.fine_tuning.evaluation | Perplexidade: 2.18
+2026-03-18 19:32:16 | INFO     | src.fine_tuning.evaluation | Testando geração de respostas médicas...
+2026-03-18 19:32:52 | INFO     | src.fine_tuning.evaluation | 
+Pergunta: Como estruturar um laudo de RM de Coluna Lombar?
+2026-03-18 19:32:52 | INFO     | src.fine_tuning.evaluation | Resposta:  Protocolo: Estruturação do Laudo de Imagem Média (RM) na coluna lombar. Diretrizes Clínicas: Indicações, contraindicações e resultados finais.
+
+### Contexto:
+- Instituição: Hospital XYZ
+- Data: 2021-08-05
+- Indicação: Dor lombar persistente após tratamento conservador
+
+### Resultado:
+- Espaço epidural normal em nível T12-L3;
+- Disco intervertebral L4-L5 com sinais inflamatórios moderados;
+- Sinal de discopatia modesta no nível L5-S1;
+- Corpo vertebral normal em todas as regiões avaliadas;
+- Canal neural sem compressão;
+- Aparência geral normal.
+
+### Conclusão:
+- Alterações degenerativas leves na coluna lombar inferior;
+- Absença de compressão radicular ou espinhal.
+
+### Recomenda
+2026-03-18 19:33:28 | INFO     | src.fine_tuning.evaluation | 
+Pergunta: Quais exames devo solicitar na investigação inicial de anemia?
+2026-03-18 19:33:28 | INFO     | src.fine_tuning.evaluation | Resposta:  Protocolo para avaliação diagnóstica diferencial da anemia. Exame de esquerda: hemoglobina, hematícrito, contagem de leucócitos, plaquetas, eritrocito sedimentação rápida (ESR), teste de Coombs direto, ferro sérico, transferrina, vitamina B12, folato, ferritina, alanina aminotransferase (ALT) e aspartate aminotransferase (AST). Exame de direita: fezes para parasitas intestinais. Diretrizes clínicas: evidências de sangramento ativo ou história recente de sangramentos; sintomas neurológicos; doença renal crônica; uso prolongado de medicamentos que podem causar anorexia e/ou mucosite; síndrome metabólica; infecções sistêmicas agudas; doenças autoimunes; condições inflamatórias crônicas; neoplasias s
+2026-03-18 19:34:04 | INFO     | src.fine_tuning.evaluation | 
+Pergunta: Quais são as diretrizes do protocolo de Acidentes Escorpiônicos?
+2026-03-18 19:34:04 | INFO     | src.fine_tuning.evaluation | Resposta:  Protocolo Clínico e Diretrizes Terapêuticas para Envenenamento por Artrópodes da Família Buthidae no Brasil. Indicações, tratamentos e medidas preventivas. Versão 2019. Ministério da Saúde / Instituto Nacional de Controle de Qualidade em Saúde (INCQS).
+
+### Contexto
+Especialidades: Medicina Geral | Toxicologia Médica
+
+### Resposta:
+Protocolo Clínico e Diretrizes Terapêuticas para envenenamento por artrópode da família Buthidae no Brasil. Indicações, tratamentos e medidas preventivas. Versão 2019. Ministério da Saúde / INCQS.
+
+### Diretrizes terapêuticas:
+- Antiveneno antitétrico scorpioníco (AAS) – indicação: sintomas graves ou moderados com risco de morte; contraindicação: alergia conhecida ao AAS. Dose única: 
+2026-03-18 19:34:04 | INFO     | src.fine_tuning.evaluation | 
+Avaliação do assistente médico generalista concluída!
+2026-03-18 19:34:08 | INFO     | src.langchain_integration.rag | Carregados 77 documentos de 3 arquivos
+2026-03-18 19:34:08 | INFO     | src.langchain_integration.rag | Índice TF-IDF criado com sucesso
+2026-03-18 19:34:08 | INFO     | src.langchain_integration.rag | MedicalRAG inicializado com 77 documentos. Método: TF-IDF
+2026-03-18 19:34:24 | INFO     | src.utils.validators | InputValidator inicializado
+2026-03-18 19:34:24 | INFO     | src.langchain_integration.chains | MedicalChains inicializado para assistente generalista
+2026-03-18 19:34:24 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 19:34:24 | INFO     | src.database.patient_records | PatientDatabase inicializado em: /kaggle/working/tech-challenge-fase-3/src/database/prontuarios.db
+2026-03-18 19:34:24 | INFO     | src.langchain_integration.assistant | Base de prontuários inicializada
+2026-03-18 19:34:24 | INFO     | src.langchain_integration.assistant | MedicalAssistant (BioMistral) inicializado
+2026-03-18 19:34:24 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 19:34:24 | INFO     | src.langgraph_flows.medical_workflow | MedicalWorkflow (Generalista) inicializado
+2026-03-18 19:34:24 | WARNING  | src.langchain_integration.tools | Possível emergência detectada: 'dor no peito'
+2026-03-18 19:35:27 | INFO     | src.utils.validators | InputValidator inicializado
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.chains | MedicalChains inicializado para assistente generalista
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.rag | Carregados 77 documentos de 3 arquivos
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.rag | Índice TF-IDF criado com sucesso
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.rag | MedicalRAG inicializado com 77 documentos. Método: TF-IDF
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.assistant | RAG inicializado: {'total_documents': 77, 'index_type': 'tfidf', 'sources': {'TelessaúdeRS-UFRGS': 15, 'CONITEC/MS': 50, 'RadReport-RSNA': 12}, 'data_dir': 'data/raw'}
+2026-03-18 19:35:27 | INFO     | src.database.patient_records | PatientDatabase inicializado em: /kaggle/working/tech-challenge-fase-3/src/database/prontuarios.db
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.assistant | Base de prontuários inicializada
+2026-03-18 19:35:27 | INFO     | src.langchain_integration.assistant | MedicalAssistant (BioMistral) inicializado
+2026-03-18 19:36:13 | WARNING  | src.langchain_integration.tools | Possível emergência detectada: 'dor no peito'
+2026-03-18 18:44:10 | INFO     | src.utils.logging_config | Logging configurado. Arquivo: logs\medical_assistant_20260318.log
+2026-03-18 18:44:10 | INFO     | __main__ | PatientDatabase inicializado em: D:\OneDrive\vagner-desktop\Documentos\DevZone\tech-challenge-fase-3\src\database\prontuarios.db
+2026-03-18 18:49:05 | INFO     | src.utils.logging_config | Logging configurado. Arquivo: logs\medical_assistant_20260318.log
+2026-03-18 18:49:05 | INFO     | src.langchain_integration.tools | MedicalTools inicializado para assistente generalista
+2026-03-18 18:49:05 | INFO     | __main__ | MedicalWorkflow (Generalista) inicializado
+2026-03-18 18:49:05 | WARNING  | src.langchain_integration.tools | Possível emergência detectada: 'dor forte no peito'
