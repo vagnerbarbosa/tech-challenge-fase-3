@@ -186,18 +186,18 @@ class MedicalAssistant:
             response = self.chains.qa_chain.invoke({
                 "question": biomistral_prompt,
                 "chat_history": self.memory.load_memory_variables({})["chat_history"],
-                "repetition_penalty": 1.3,
-                "temperature": 0.1,
-                "max_new_tokens": 300
             })
 
-            # 4. Limpeza de repetição
-            clean_response = response.replace(biomistral_prompt, "").strip()
-            
-            if "### Contexto" in clean_response:
-                clean_response = clean_response.split("### Contexto")[0].strip()
-            if "### Resposta" in clean_response:
-                clean_response = clean_response.split("### Resposta")[0].strip()
+            # 4. Limpeza completa da resposta
+            clean_response = response.strip()
+
+            # Remove tags comuns do BioMistral/LLaMA
+            for tag in ["<s>", "</s>", "[INST]", "[/INST]", "### Instrução:", "### Resposta:", "### Contexto:", "### Pergunta:"]:
+                clean_response = clean_response.replace(tag, "")
+
+            # Remove linhas vazias excessivas
+            lines = [line.strip() for line in clean_response.split("\n") if line.strip()]
+            clean_response = "\n".join(lines)
 
             # 5. Adicionar citações de fontes (Explainability)
             citations = self._format_source_citations(sources)

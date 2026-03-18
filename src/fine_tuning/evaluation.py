@@ -11,7 +11,6 @@ from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-
 class ModelEvaluator:
     """
     Classe para avaliação de modelos de linguagem médicos.
@@ -28,6 +27,11 @@ class ModelEvaluator:
         """
         self.model = model
         self.tokenizer = tokenizer
+        
+        # Garante que o tokenizer e o modelo aceitem o comprimento configurado
+        max_seq = int(os.environ.get("MAX_SEQ_LENGTH", 2048))
+        if hasattr(self.tokenizer, "model_max_length"):
+            self.tokenizer.model_max_length = max_seq
         
         # Configura pipeline de geração sem forçar device (compatível com accelerate)
         try:
@@ -47,46 +51,34 @@ class ModelEvaluator:
                 device=None  # Força device=None para evitar conflito com accelerate
             )
         
-        logger.info("ModelEvaluator inicializado para assistente médico generalista")
+        logger.info(f"ModelEvaluator inicializado (Max Seq: {max_seq})")
     
-    def generate_response(self, prompt: str, max_new_tokens: int = 200) -> str:
+    def generate_response(self, prompt: str, max_new_tokens: int = 256) -> str:
         """
         Gera resposta para um prompt médico.
-        
-        Args:
-            prompt: Texto de entrada (pergunta médica)
-            max_new_tokens: Número máximo de tokens a gerar
-            
-        Returns:
-            Resposta gerada
         """
-        # Configuração mais segura para BioMistral
         result = self.generator(
             prompt,
             max_new_tokens=max_new_tokens,
-            temperature=0.1,              # Menos criatividade
+            temperature=0.1,
             top_p=0.9,
             repetition_penalty=1.2,
             do_sample=True,
             pad_token_id=self.tokenizer.eos_token_id,
-            return_full_text=False        # Evita repetir o prompt
+            return_full_text=False
         )
         
         return result[0]['generated_text']
     
     def calculate_perplexity(self, texts: List[str]) -> float:
         """
-        Calcula perplexidade média para uma lista de textos.
-        
-        Args:
-            texts: Lista de textos para avaliação
-            
-        Returns:
-            Perplexidade média
+        Calcula perplexidade média para uma lista de textos respeitando o MAX_SEQ_LENGTH.
         """
         total_loss = 0
         total_tokens = 0
         
+        max_seq = int(os.environ.get("MAX_SEQ_LENGTH", 2048))
+
         self.model.eval()
         
         with torch.no_grad():
@@ -95,15 +87,22 @@ class ModelEvaluator:
                     text,
                     return_tensors="pt",
                     truncation=True,
-                    max_length=512,
+                    max_length=max_seq,
                 )
                 
                 input_ids = encodings.input_ids.to(self.model.device)
                 
+                # Evita erro se o input_ids for vazio
+                if input_ids.size(1) == 0:
+                    continue
+                    
                 outputs = self.model(input_ids, labels=input_ids)
                 total_loss += outputs.loss.item() * input_ids.size(1)
                 total_tokens += input_ids.size(1)
         
+        if total_tokens == 0:
+            return float('inf')
+            
         avg_loss = total_loss / total_tokens
         perplexity = np.exp(avg_loss)
         
@@ -116,24 +115,15 @@ class ModelEvaluator:
     ) -> Dict[str, float]:
         """
         Avalia qualidade das respostas de Q&A médico.
-        
-        Args:
-            questions: Lista de perguntas médicas
-            expected_answers: Lista de respostas esperadas
-            
-        Returns:
-            Dicionário com métricas
         """
         from difflib import SequenceMatcher
         
         similarities = []
         
         for question, expected in zip(questions, expected_answers):
-            # Prompt no formato BioMistral
             prompt = self.format_biomistral_prompt(question)
             generated = self.generate_response(prompt)
             
-            # Calcula similaridade
             similarity = SequenceMatcher(None, generated.lower(), expected.lower()).ratio()
             similarities.append(similarity)
         
@@ -153,20 +143,18 @@ class ModelEvaluator:
     def evaluate(self, dataset: Dataset) -> Dict[str, Any]:
         """
         Executa avaliação completa do modelo médico generalista.
-        
-        Args:
-            dataset: Dataset de avaliação
-            
-        Returns:
-            Dicionário com todas as métricas
         """
         logger.info("Iniciando avaliação do modelo médico generalista...")
         
         metrics = {}
         
         # Extrai textos do dataset
-        texts = dataset['text'][:50]  # Limita para avaliação rápida
+        texts = dataset['text'][:50] if len(dataset) > 0 else []
         
+        if not texts:
+            logger.warning("Dataset vazio para avaliação.")
+            return {"perplexity": 0.0}
+
         # Calcula perplexidade
         logger.info("Calculando perplexidade...")
         metrics['perplexity'] = self.calculate_perplexity(texts)
@@ -182,27 +170,18 @@ class ModelEvaluator:
         
         for prompt in test_prompts:
             formatted_prompt = self.format_biomistral_prompt(prompt)
-            response = self.generate_response(formatted_prompt)
-            logger.info(f"\nPergunta: {prompt}")
-            logger.info(f"Resposta: {response}")
+            try:
+                response = self.generate_response(formatted_prompt)
+                logger.info(f"\nPergunta: {prompt}")
+                logger.info(f"Resposta: {response}")
+            except Exception as e:
+                logger.error(f"Erro ao gerar resposta para o prompt '{prompt}': {e}")
         
         logger.info("\nAvaliação do assistente médico generalista concluída!")
         
         return metrics
 
-
-
-
 if __name__ == "__main__":
-    """
-    Execução isolada do módulo de avaliação.
-    
-    Uso:
-        python -m src.fine_tuning.evaluation
-    
-    Exibe informações sobre o avaliador e exemplos de uso.
-    Nota: requer modelo e tokenizer carregados para avaliação completa.
-    """
     from src.utils.logging_config import setup_logging
     setup_logging()
     

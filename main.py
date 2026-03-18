@@ -22,6 +22,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Carrega variáveis de ambiente
 load_dotenv()
 
+# Configura token do Hugging Face Hub explicitamente
+from huggingface_hub import login
+hf_token = os.environ.get("HF_TOKEN")
+if hf_token and hf_token != "hf_your_token_here":
+    try:
+        login(token=hf_token, add_to_git_credential=False)
+        print("✅ Login no Hugging Face Hub realizado via HF_TOKEN")
+    except Exception as e:
+        print(f"⚠️ Erro ao fazer login no HF Hub: {e}")
+
 # Imports dos módulos do projeto
 from src.utils.logging_config import setup_logging, get_logger
 from src.fine_tuning.data_preparation import DataPreparation

@@ -218,7 +218,7 @@ DATA_PATH=./data
 LOG_PATH=./logs
 
 # Outras configurações (ajuste conforme necessário)
-MAX_SEQ_LENGTH=512
+MAX_SEQ_LENGTH=2048
 BATCH_SIZE=4
 LEARNING_RATE=2e-4
 NUM_EPOCHS=3
