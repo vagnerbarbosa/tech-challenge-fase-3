@@ -75,6 +75,7 @@ models/*.gguf
 # Logs
 logs/*.log
 logs/*.txt
+!logs/medical_assistant_20260318.log
 
 # Data (dados brutos e processados - gerados pelos scrapers e sanitização)
 data/processed/*.jsonl
@@ -82,6 +83,7 @@ data/processed/sanitization_report.json
 !data/processed/.gitkeep
 data/raw/*.jsonl
 !data/raw/.gitkeep
+!data/processed/medical_data_unified.jsonl
 
 # Models (arquivos de modelos gerados ou utilizados)
 models/*
@@ -89,6 +91,7 @@ models/*.bin
 models/*.pt
 models/*.h5
 !models/.gitkeep
+!models/final_model
 
 # Documentação (manter apenas Markdown)
 docs/*.pdf
