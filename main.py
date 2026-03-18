@@ -24,7 +24,7 @@ load_dotenv()
 
 # Configura token do Hugging Face Hub explicitamente
 from huggingface_hub import login
-hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
+hf_token = os.environ.get("HF_TOKEN")
 if hf_token and hf_token != "hf_your_token_here":
     try:
         login(token=hf_token, add_to_git_credential=False)
