@@ -57,7 +57,7 @@ class ModelTrainer:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # Configurações de treinamento
-        self.max_seq_length = int(os.getenv("MAX_SEQ_LENGTH", 512))
+        self.max_seq_length = int(os.getenv("MAX_SEQ_LENGTH", 2048))
         self.batch_size = int(os.getenv("BATCH_SIZE", 4))
         self.learning_rate = float(os.getenv("LEARNING_RATE", 2e-4))
         self.num_epochs = int(os.getenv("NUM_EPOCHS", 3))

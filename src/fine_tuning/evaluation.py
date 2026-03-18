@@ -29,7 +29,7 @@ class ModelEvaluator:
         self.tokenizer = tokenizer
         
         # Garante que o tokenizer e o modelo aceitem o comprimento configurado
-        max_seq = int(os.environ.get("MAX_SEQ_LENGTH", 1024))
+        max_seq = int(os.environ.get("MAX_SEQ_LENGTH", 2048))
         if hasattr(self.tokenizer, "model_max_length"):
             self.tokenizer.model_max_length = max_seq
         
@@ -77,8 +77,8 @@ class ModelEvaluator:
         total_loss = 0
         total_tokens = 0
         
-        max_seq = int(os.environ.get("MAX_SEQ_LENGTH", 1024))
-        
+        max_seq = int(os.environ.get("MAX_SEQ_LENGTH", 2048))
+
         self.model.eval()
         
         with torch.no_grad():
