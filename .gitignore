@@ -93,9 +93,6 @@ models/*.h5
 !models/.gitkeep
 !models/final_model
 
-# Documentação (manter apenas Markdown)
-docs/*.pdf
-
 # OS
 .DS_Store
 Thumbs.db
