@@ -49,10 +49,10 @@ projeto_fase3/
 │       └── .gitkeep
 ├── docs/                              # Documentação técnica
 │   ├── diagrama_fluxo_langgraph.png   # Diagrama visual do workflow LangGraph
-│   └── relatorio_tecnico.md           # Relatório técnico completo do projeto
-├── logs/                              # Logs do sistema (não versionados)
+│   └── relatorio_tecnico.pdf          # Relatório técnico completo do projeto
+├── logs/                              # Logs do sistema
 │   └── .gitkeep
-├── models/                            # Modelos treinados (não versionados)
+├── models/                            # Modelos treinados
 │   └── .gitkeep
 ├── notebooks/                         # Jupyter notebooks para experimentação
 │   └── .gitkeep
