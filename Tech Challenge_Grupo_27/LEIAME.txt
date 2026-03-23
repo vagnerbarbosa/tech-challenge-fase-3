@@ -1,0 +1,20 @@
+Assistente Virtual Médico com LLM Fine-tuning e LangChain - Tech Challenge Fase 3
+
+## ENVOLVIDOS (CONTRIBUIDORES)
+Este projeto foi desenvolvido por:
+* Adriel Santos
+* João Marcos
+* Leticia Nepomucena
+* Lucas Silva
+* Vagner Barbosa
+
+## REPOSITÓRIO E CÓDIGO (GITHUB)
+O código-fonte completo, o Jupyter Notebook (tech_challenge_fase3_colab.ipynb) e os demais arquivos estão disponíveis no repositório abaixo:
+https://github.com/vagnerbarbosa/tech-challenge-fase-3
+
+## APRESENTAÇÃO E DEMONSTRAÇÃO (VÍDEO/YOUTUBE)
+https://www.youtube.com/watch?v=nnPPQ0o0mvI
+
+## OBSERVAÇÕES
+
+Demais orientações de como executar o projeto se encontram no README do código-fonte. 
